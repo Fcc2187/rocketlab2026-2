@@ -22,6 +22,9 @@ async def test_admin_can_log_in(client, monkeypatch) -> None:
     assert response.json()["token_type"] == "bearer"
     assert response.json()["expires_in"] == 1800
     assert response.json()["access_token"]
+    assert "senha-teste" not in response.text
+    assert "ADMIN_PASSWORD_HASH" not in response.text
+    assert "AUTH_SECRET_KEY" not in response.text
 
 
 async def test_anonymous_user_cannot_create_movie(client) -> None:
@@ -109,6 +112,10 @@ async def test_only_catalog_maintenance_requires_admin(client, admin_headers) ->
     assert (await client.get("/health")).status_code == 200
 
     paths = (await client.get("/openapi.json")).json()["paths"]
+    login_operation = paths["/api/v1/auth/login"]["post"]
+    assert "application/json" in login_operation["requestBody"]["content"]
+    assert "200" in login_operation["responses"]
+    assert "security" not in login_operation
     for method, path in (
         ("post", "/api/v1/movies"),
         ("patch", "/api/v1/movies/{sk_movie_id}"),

@@ -9,6 +9,8 @@ from app.core.config import get_settings
 class MovieCache:
     """Cache local e limitado das respostas públicas de filmes."""
 
+    # cada processo tem seu cache; usar cache compartilhado se houver vários workers.
+
     def __init__(self) -> None:
         self.entries: OrderedDict[tuple, tuple[float, BaseModel]] = OrderedDict()
         self.generation = 0
