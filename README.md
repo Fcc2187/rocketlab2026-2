@@ -1,6 +1,16 @@
-﻿# RocketLab 2026.2 — backend
+﻿# RocketLab 2026.2
 
-API FastAPI e banco SQLite para o catálogo e as avaliações de filmes da atividade. O frontend React/Vite será desenvolvido na próxima fase.
+API FastAPI e banco SQLite para o catálogo e as avaliações de filmes da atividade. O frontend Vite + React + TypeScript já possui o setup inicial; páginas e design system serão definidos na próxima fase.
+
+## Frontend
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+O setup abre uma aplicação vazia em `http://localhost:5173`.
 
 ## Requisitos
 
