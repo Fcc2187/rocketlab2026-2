@@ -1,5 +1,7 @@
 # Autenticação e cache do backend — plano de implementação
 
+**Estado em 2026-09-24:** autenticação e cache implementados. A execução e o registro dos commits consolidados estão em [execution.md](execution.md); as caixas abaixo preservam o roteiro original.
+
 > **Para execução:** usar `superpowers:executing-plans` para seguir as etapas, o fluxo `tdd` do repositório em cada comportamento e a skill `code-review` ao final. Este plano será executado na `main` depois da revisão do usuário.
 
 **Objetivo:** proteger as três operações de manutenção do catálogo e acelerar as três consultas públicas de filmes, mantendo a criação de avaliações aberta a qualquer pessoa.

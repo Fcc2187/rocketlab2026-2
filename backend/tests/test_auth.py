@@ -46,6 +46,17 @@ async def test_invalid_hash_prevents_startup(monkeypatch) -> None:
             pass
 
 
+async def test_username_too_long_prevents_startup(monkeypatch) -> None:
+    monkeypatch.setenv("ADMIN_USERNAME", "a" * 121)
+    monkeypatch.setenv("ADMIN_PASSWORD_HASH", PasswordHash.recommended().hash("senha-teste"))
+    monkeypatch.setenv("AUTH_SECRET_KEY", "s" * 32)
+    get_settings.cache_clear()
+
+    with pytest.raises(ValueError, match="ADMIN_USERNAME"):
+        async with app.router.lifespan_context(app):
+            pass
+
+
 @pytest.mark.parametrize("missing", ["ADMIN_USERNAME", "ADMIN_PASSWORD_HASH", "AUTH_SECRET_KEY"])
 async def test_missing_auth_setting_prevents_startup(database_url, monkeypatch, missing) -> None:
     monkeypatch.setenv(missing, "")
@@ -106,7 +117,7 @@ async def test_only_catalog_maintenance_requires_admin(client, admin_headers) ->
     assert (await client.get(f"/api/v1/movies/{movie_id}/reviews")).status_code == 200
     anonymous_review = await client.post(
         f"/api/v1/movies/{movie_id}/reviews",
-        json={"nome": "Visitante", "nota_estrelas": 5, "comentario": "Gostei"},
+        json={"nome": "Visitante", "nota": 10, "comentario": "Gostei"},
     )
     assert anonymous_review.status_code == 201
     assert (await client.get("/health")).status_code == 200

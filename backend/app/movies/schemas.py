@@ -22,7 +22,7 @@ class MovieListItem(BaseModel):
     url_poster: str | None
     generos: list[str]
     quantidade_avaliacoes: int
-    media_estrelas: float | None
+    media_avaliacoes: float | None
 
 
 class MoviePage(BaseModel):
@@ -66,7 +66,7 @@ class MovieDetail(MovieListItem):
 class ReviewItem(BaseModel):
     sk_movie_review_id: str
     nome: str
-    nota_estrelas: float
+    nota: float
     comentario: str
     created_at: datetime
 
@@ -83,13 +83,13 @@ class ReviewCreate(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "examples": [
-                {"nome": "Maria", "nota_estrelas": 4.5, "comentario": "Gostei."}
+                {"nome": "Maria", "nota": 9, "comentario": "Gostei."}
             ]
         }
     )
 
     nome: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
-    nota_estrelas: float = Field(ge=1, le=5, allow_inf_nan=False)
+    nota: float = Field(ge=0, le=10, allow_inf_nan=False)
     comentario: Annotated[
         str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)
     ]
@@ -97,7 +97,7 @@ class ReviewCreate(BaseModel):
 
 class ReviewCreated(ReviewItem):
     quantidade_avaliacoes: int
-    media_estrelas: float
+    media_avaliacoes: float
 
 
 class MoviePatch(BaseModel):

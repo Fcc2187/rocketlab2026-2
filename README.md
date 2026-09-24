@@ -92,12 +92,12 @@ Exemplo de avaliação:
 ```json
 {
   "nome": "Maria",
-  "nota_estrelas": 4.5,
+  "nota": 9,
   "comentario": "Gostei."
 }
 ```
 
-Novas avaliações aceitam de 1 a 5 estrelas, inclusive decimais. O banco e os CSVs usam notas de 0 a 10: a API multiplica por 2 ao gravar e divide por 2 ao exibir notas e médias. Por isso uma nota histórica de 0,9/10 aparece como 0,45 estrela. Filmes sem avaliações mostram quantidade 0 e média `null`.
+Avaliações novas e históricas usam a escala de 0 a 10, inclusive valores decimais. A API recebe e devolve `nota` e `media_avaliacoes` nessa mesma escala, sem conversão. Filmes sem avaliações mostram quantidade 0 e média `null`.
 
 ### Cache de consultas
 

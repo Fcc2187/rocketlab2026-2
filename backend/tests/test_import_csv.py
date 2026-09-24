@@ -24,27 +24,28 @@ HEADERS = {
 }
 
 
-def write_csvs(directory, *, invalid_genre=False, invalid_date=False) -> None:
+def write_csvs(
+    directory, *, invalid_genre=False, invalid_date=False, truncated_movie=False
+) -> None:
     directory.mkdir()
     for name, header in HEADERS.items():
         with (directory / f"{name}.csv").open("w", encoding="utf-8", newline="") as file:
             writer = csv.writer(file)
             writer.writerow(header.split(","))
             if name == "dim_movies":
-                writer.writerow(
-                    [
-                        "m",
-                        "42",
-                        "Filme, Um",
-                        "2020-99-99" if invalid_date else "",
-                        "2020",
-                        "",
-                        "",
-                        "",
-                        "",
-                        "",
-                    ]
-                )
+                row = [
+                    "m",
+                    "42",
+                    "Filme, Um",
+                    "2020-99-99" if invalid_date else "",
+                    "2020",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                ]
+                writer.writerow(row[:-1] if truncated_movie else row)
             elif name == "dim_genres":
                 writer.writerow(["Drama", "g"])
             elif name == "bridge_movie_genre":
@@ -104,6 +105,18 @@ def test_import_rolls_back_on_invalid_foreign_key(tmp_path, database_url) -> Non
 def test_import_rejects_invalid_date_without_partial_data(tmp_path, database_url) -> None:
     data_dir = tmp_path / "csvs"
     write_csvs(data_dir, invalid_date=True)
+
+    result = run_import(data_dir, database_url)
+
+    assert result.returncode != 0
+    assert "dim_movies.csv:2" in result.stderr
+    with sqlite3.connect(tmp_path / "test.db") as db:
+        assert db.execute("SELECT count(*) FROM dim_movies").fetchone() == (0,)
+
+
+def test_import_rejects_truncated_csv_row(tmp_path, database_url) -> None:
+    data_dir = tmp_path / "csvs"
+    write_csvs(data_dir, truncated_movie=True)
 
     result = run_import(data_dir, database_url)
 

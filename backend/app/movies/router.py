@@ -34,7 +34,7 @@ async def list_movies(
     genero: str | None = None,
     db: AsyncSession = Depends(get_db),
 ) -> MoviePage:
-    cache_key = ("list", page, page_size, q.strip().lower() if q else None, ano,
+    cache_key = ("list", page, page_size, q.strip().casefold() if q else None, ano,
                  genero.strip().lower() if genero else None)
     cached = movie_cache.get(cache_key)
     if cached is not None:
@@ -42,8 +42,8 @@ async def list_movies(
     generation = movie_cache.generation
     filters = []
     if q and q.strip():
-        term = q.strip().lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        filters.append(func.lower(DimMovie.titulo).like(f"%{term}%", escape="\\"))
+        term = q.strip().casefold().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        filters.append(func.unicode_casefold(DimMovie.titulo).like(f"%{term}%", escape="\\"))
     if ano is not None:
         filters.append(DimMovie.ano_lancamento == ano)
     if genero and genero.strip():
@@ -56,7 +56,7 @@ async def list_movies(
         .where(*filters)
         .options(selectinload(DimMovie.genres), selectinload(DimMovie.reviews_summary))
         .order_by(DimMovie.titulo, DimMovie.sk_movie_id)
-        .offset((page - 1) * page_size)
+        .offset(min((page - 1) * page_size, 2**63 - 1))
         .limit(page_size)
     )
     items = [
@@ -69,8 +69,8 @@ async def list_movies(
             quantidade_avaliacoes=(
                 movie.reviews_summary.qtd_avaliacoes_usuarios if movie.reviews_summary else 0
             ),
-            media_estrelas=(
-                movie.reviews_summary.nota_media_usuarios / 2
+            media_avaliacoes=(
+                movie.reviews_summary.nota_media_usuarios
                 if movie.reviews_summary and movie.reviews_summary.nota_media_usuarios is not None
                 else None
             ),
@@ -183,8 +183,8 @@ async def get_movie(sk_movie_id: str, db: AsyncSession = Depends(get_db)) -> Mov
             MoviePerformance.model_validate(movie.performance) if movie.performance else None
         ),
         quantidade_avaliacoes=summary.qtd_avaliacoes_usuarios if summary else 0,
-        media_estrelas=(
-            summary.nota_media_usuarios / 2
+        media_avaliacoes=(
+            summary.nota_media_usuarios
             if summary and summary.nota_media_usuarios is not None
             else None
         ),
@@ -276,7 +276,7 @@ async def list_reviews(
         select(MovieReview)
         .where(MovieReview.sk_movie_id == sk_movie_id)
         .order_by(MovieReview.created_at, MovieReview.sk_movie_review_id)
-        .offset((page - 1) * page_size)
+        .offset(min((page - 1) * page_size, 2**63 - 1))
         .limit(page_size)
     )
     page_result = ReviewPage(
@@ -284,7 +284,7 @@ async def list_reviews(
             ReviewItem(
                 sk_movie_review_id=review.sk_movie_review_id,
                 nome=review.nome,
-                nota_estrelas=review.nota / 2,
+                nota=review.nota,
                 comentario=review.comentario,
                 created_at=review.created_at,
             )
@@ -316,7 +316,7 @@ async def create_review(
     review = MovieReview(
         sk_movie_id=sk_movie_id,
         nome=payload.nome,
-        nota=payload.nota_estrelas * 2,
+        nota=payload.nota,
         comentario=payload.comentario,
     )
     db.add(review)
@@ -346,9 +346,9 @@ async def create_review(
     return ReviewCreated(
         sk_movie_review_id=review.sk_movie_review_id,
         nome=review.nome,
-        nota_estrelas=review.nota / 2,
+        nota=review.nota,
         comentario=review.comentario,
         created_at=review.created_at,
         quantidade_avaliacoes=count,
-        media_estrelas=mean / 2,
+        media_avaliacoes=mean,
     )

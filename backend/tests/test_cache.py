@@ -33,7 +33,7 @@ async def test_public_reads_use_cache_until_anonymous_review_invalidates_it(clie
     assert (await client.get(reviews_url)).json()["total"] == 0
 
     response = await client.post(
-        reviews_url, json={"nome": "Visitante", "nota_estrelas": 5, "comentario": "Ótimo"}
+        reviews_url, json={"nome": "Visitante", "nota": 10, "comentario": "Ótimo"}
     )
     assert response.status_code == 201
     assert (await client.get(list_url)).json()["items"][0]["titulo"] == "Mudou no banco"

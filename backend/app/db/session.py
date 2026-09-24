@@ -13,8 +13,8 @@ from app.core.config import get_settings
 settings = get_settings()
 
 
-def enable_sqlite_foreign_keys(async_engine: AsyncEngine) -> None:
-    """Habilita chaves estrangeiras em cada conexão SQLite."""
+def configure_sqlite_connection(async_engine: AsyncEngine) -> None:
+    """Configura chaves estrangeiras e busca sem distinção de maiúsculas."""
 
     @event.listens_for(async_engine.sync_engine, "connect")
     def _set_sqlite_pragma(dbapi_connection: object, connection_record: object) -> None:
@@ -22,10 +22,11 @@ def enable_sqlite_foreign_keys(async_engine: AsyncEngine) -> None:
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
+        dbapi_connection.create_function("unicode_casefold", 1, str.casefold)
 
 
 engine = create_async_engine(settings.database_url, echo=settings.environment == "local")
-enable_sqlite_foreign_keys(engine)
+configure_sqlite_connection(engine)
 AsyncSessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False, autoflush=False)
 
 

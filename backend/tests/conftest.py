@@ -8,7 +8,7 @@ from pwdlib import PasswordHash
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core.config import get_settings
-from app.db.session import enable_sqlite_foreign_keys, get_db
+from app.db.session import configure_sqlite_connection, get_db
 from app.main import app
 from app.movies.cache import movie_cache
 
@@ -33,7 +33,7 @@ async def client(database_url) -> AsyncIterator[httpx.AsyncClient]:
 
     movie_cache.invalidate()
     engine = create_async_engine(database_url)
-    enable_sqlite_foreign_keys(engine)
+    configure_sqlite_connection(engine)
     sessions = async_sessionmaker(engine, expire_on_commit=False)
 
     async def test_db() -> AsyncIterator:

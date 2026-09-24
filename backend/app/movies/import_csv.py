@@ -99,8 +99,8 @@ def import_file(db: sqlite3.Connection, directory: Path, filename: str, table: s
         )
         batch: list[tuple[int, tuple]] = []
         for row in reader:
-            if None in row:
-                raise ValueError(f"{filename}:{reader.line_num}: colunas extras no registro")
+            if None in row or any(value is None for value in row.values()):
+                raise ValueError(f"{filename}:{reader.line_num}: número de colunas inválido")
             try:
                 values = tuple(convert(column, row[column]) for column in columns)
             except (KeyError, ValueError) as exc:

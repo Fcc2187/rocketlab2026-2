@@ -24,8 +24,10 @@ class Settings(BaseSettings):
     cache_ttl_seconds: int = Field(default=30, ge=0, le=3600)
 
     def validate_auth(self) -> None:
-        if not self.admin_username.strip() or not self.admin_password_hash.startswith("$argon2id$"):
-            raise ValueError("Configure ADMIN_USERNAME e ADMIN_PASSWORD_HASH (Argon2)")
+        if not self.admin_username.strip() or len(self.admin_username) > 120:
+            raise ValueError("ADMIN_USERNAME deve conter de 1 a 120 caracteres")
+        if not self.admin_password_hash.startswith("$argon2id$"):
+            raise ValueError("Configure ADMIN_PASSWORD_HASH (Argon2)")
         try:
             PasswordHasher().check_needs_rehash(self.admin_password_hash)
         except InvalidHashError as exc:

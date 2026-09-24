@@ -76,8 +76,21 @@ async def test_catalog_search_and_filters_intersect_without_duplicate_movies(cli
     assert [item["titulo"] for item in response.json()["items"]] == ["The Ring"]
     assert response.json()["items"][0]["generos"] == ["Drama", "Horror"]
     assert (await client.get("/api/v1/movies?page=4&page_size=1")).json()["items"] == []
+    assert (await client.get("/api/v1/movies?q=inexistente")).json()["total"] == 0
     assert (await client.get("/api/v1/movies?page=0")).status_code == 422
     assert (await client.get("/api/v1/movies?page_size=101")).status_code == 422
+
+
+async def test_catalog_search_ignores_case_for_accented_letters(client) -> None:
+    session_factory = app.dependency_overrides[get_db]
+    async for session in session_factory():
+        session.add(DimMovie(id_filme="1", titulo="Épico"))
+        await session.commit()
+
+    response = await client.get("/api/v1/movies?q=épico")
+
+    assert response.status_code == 200
+    assert [item["titulo"] for item in response.json()["items"]] == ["Épico"]
 
 
 async def test_movie_detail_contains_related_data_and_review_average(client) -> None:
@@ -114,7 +127,7 @@ async def test_movie_detail_contains_related_data_and_review_average(client) -> 
     assert body["roteiristas"] == []
     assert body["desempenho"]["lucro_usd"] == 5
     assert body["quantidade_avaliacoes"] == 1
-    assert body["media_estrelas"] == 4.9
+    assert body["media_avaliacoes"] == 9.8
     assert (await client.get("/api/v1/movies/missing")).status_code == 404
 
 
