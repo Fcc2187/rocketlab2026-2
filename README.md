@@ -1,72 +1,91 @@
-# RocketLab 2026.2 — repositório base
+﻿# RocketLab 2026.2 — backend
 
-Base inicial para evoluir a atividade do RocketLab 2026.2. Ela preserva a organização do backend,
-o modelo relacional do catálogo de filmes em SQLAlchemy 2.0 e o histórico de
-migrações com Alembic, sem incluir interface, dados CSV, endpoints de negócio
-ou rotinas de carga.
+API FastAPI e banco SQLite para o catálogo e as avaliações de filmes da atividade. O frontend React/Vite será desenvolvido na próxima fase.
 
-> **Nota:** `RocketLab` é apenas o nome de referência desta base. O diretório,
-> nome do pacote, título da API e arquivo do banco podem ser renomeados para o
-> que preferirem; eles não representam uma exigência da
-> estrutura-base.
+## Requisitos
 
-## Estrutura
+- Python 3.11 ou superior
+- Os dez arquivos CSV em `dados/`, já incluídos neste repositório
 
-```text
-.
-├── backend/
-│   ├── app/
-│   │   ├── api/v1/        # ponto de composição dos futuros routers
-│   │   ├── core/          # configurações e logging
-│   │   ├── db/            # Base ORM, engine e sessões
-│   │   └── movies/        # modelos SQLAlchemy do domínio de filmes
-│   ├── migrations/        # ambiente e revisões Alembic
-│   └── tests/
-└── README.md
+## Executar no Windows (PowerShell)
+
+A partir da raiz do repositório:
+
+```powershell
+cd backend
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+Copy-Item .env.example .env
+.\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\python.exe -m app.movies.import_csv ..\dados
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
 ```
 
-## Execução
+Se `py -3.11` não estiver disponível, substitua pelo caminho da sua instalação de Python 3.11+.
 
-Requer Python 3.11 ou superior.
+## Executar no macOS/Linux
 
 ```bash
 cd backend
 python3 -m venv .venv
-.venv/bin/pip install -e ".[dev]"
+.venv/bin/python -m pip install -e ".[dev]"
 cp .env.example .env
-.venv/bin/alembic upgrade head
-.venv/bin/uvicorn app.main:app --reload
+.venv/bin/python -m alembic upgrade head
+.venv/bin/python -m app.movies.import_csv ../dados
+.venv/bin/python -m uvicorn app.main:app --reload
 ```
 
-A API mínima ficará disponível em `http://localhost:8000`; use
-`http://localhost:8000/docs` para a documentação automática. O endpoint
-`GET /health` permite conferir se a aplicação iniciou corretamente.
+A API fica em `http://localhost:8000`, a documentação interativa em `http://localhost:8000/docs` e o teste de inicialização em `GET /health`.
 
-## Banco de dados e migrações
+A carga importa os dez CSVs em uma transação, exige o esquema criado pelo Alembic e recusa a repetição em um catálogo já preenchido. O banco local padrão é `backend/rocketlab.db`, configurável por `DATABASE_URL` em `.env`. Para começar com outro banco, aponte `DATABASE_URL` para um novo arquivo SQLite e execute a migração e a carga nesse arquivo. A carga reconcilia `dim_reviews` com as avaliações individuais.
 
-O modelo usa um esquema estrela para o catálogo de filmes:
+## API
 
-- dimensões de filmes, gêneros, pessoas, produtoras e resumo de avaliações;
-- fato de desempenho financeiro e de engajamento;
-- tabelas de associação N:N entre filmes, gêneros, produtoras e pessoas;
+Todas as rotas abaixo usam o prefixo `/api/v1`. `page` começa em 1; `page_size` começa em 20 e aceita até 100. As listagens retornam `items`, `page`, `page_size`, `total` e `total_pages`.
 
-O schema corresponde aos nove arquivos CSV atuais da camada Diamond, com a
-adição de `movie_reviews`: uma avaliação individual por linha, na escala 0–10.
-A tabela aceita diretamente as colunas `sk_movie_review_id`, `sk_movie_id`,
-`nome`, `nota` e `comentario` do CSV enviado separadamente. `created_at` é
-gerado pelo banco. O contexto generativo não faz parte desta base.
+| Método | Rota | Uso |
+| --- | --- | --- |
+| GET | `/movies` | Catálogo paginado; filtros opcionais `q` (título), `ano` e `genero` |
+| GET | `/movies/{sk_movie_id}` | Detalhes completos, pessoas, produtoras, métricas e média |
+| POST | `/movies` | Cadastra um filme |
+| PATCH | `/movies/{sk_movie_id}` | Atualiza somente os campos enviados |
+| DELETE | `/movies/{sk_movie_id}` | Remove o filme e suas avaliações/vínculos |
+| GET | `/movies/{sk_movie_id}/reviews` | Histórico paginado de avaliações |
+| POST | `/movies/{sk_movie_id}/reviews` | Registra uma avaliação e atualiza a média |
 
-O repositório não inclui CSVs nem rotinas de carga. Para usar avaliações,
-importe primeiro os filmes em `dim_movies` e depois o CSV de `movie_reviews`.
+Exemplo de filme:
 
-As tabelas são criadas exclusivamente pelo Alembic. Para evoluir os modelos,
-crie uma revisão e aplique-a:
-
-```bash
-cd backend
-.venv/bin/alembic revision --autogenerate -m "descreva a alteração"
-.venv/bin/alembic upgrade head
+```json
+{
+  "titulo": "Meu filme",
+  "ano_lancamento": 2024,
+  "sinopse": "Uma história.",
+  "generos": ["Drama"],
+  "diretores": ["Ana Silva"]
+}
 ```
 
-O banco padrão é SQLite local em `backend/rocketlab.db`. Ajuste
-`DATABASE_URL` no arquivo `.env` para usar outro banco compatível.
+Na atualização, `generos: []` limpa os gêneros e `diretores: []` limpa apenas os diretores. Campos omitidos permanecem iguais. Títulos repetidos são permitidos; cada filme possui um `sk_movie_id` distinto.
+
+Exemplo de avaliação:
+
+```json
+{
+  "nome": "Maria",
+  "nota_estrelas": 4.5,
+  "comentario": "Gostei."
+}
+```
+
+Novas avaliações aceitam de 1 a 5 estrelas, inclusive decimais. O banco e os CSVs usam notas de 0 a 10: a API multiplica por 2 ao gravar e divide por 2 ao exibir notas e médias. Por isso uma nota histórica de 0,9/10 aparece como 0,45 estrela. Filmes sem avaliações mostram quantidade 0 e média `null`.
+
+## Verificações
+
+Dentro de `backend/`:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe -m ruff check app tests
+```
+
+No macOS/Linux, use `.venv/bin/python` no lugar de `.\.venv\Scripts\python.exe`. Os testes HTTP usam um banco temporário migrado pelo Alembic e não alteram o banco local. O projeto não inclui contas ou login nesta fase; o administrador é o operador previsto no enunciado.
