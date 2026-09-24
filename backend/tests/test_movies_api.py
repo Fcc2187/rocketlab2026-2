@@ -1,3 +1,5 @@
+from sqlalchemy import func, select
+
 from app.db.session import get_db
 from app.main import app
 from app.movies.models import (
@@ -158,6 +160,41 @@ async def test_create_movies_with_same_title_and_validate_names(client, admin_he
             headers=admin_headers,
         )
     ).status_code == 422
+
+
+async def test_create_and_patch_reuse_genres_and_directors_ignoring_case(
+    client, admin_headers
+) -> None:
+    url = "/api/v1/movies"
+    first = await client.post(
+        url,
+        json={"titulo": "Primeiro", "generos": ["Épico"], "diretores": ["Ana Silva"]},
+        headers=admin_headers,
+    )
+    assert first.status_code == 201
+
+    second = await client.post(
+        url,
+        json={"titulo": "Segundo", "generos": ["épico"], "diretores": ["ANA SILVA"]},
+        headers=admin_headers,
+    )
+    assert second.status_code == 201
+    assert second.json()["generos"] == ["Épico"]
+    assert second.json()["diretores"] == ["Ana Silva"]
+
+    changed = await client.patch(
+        f"{url}/{second.json()['sk_movie_id']}",
+        json={"generos": ["ÉPICO"], "diretores": ["ana silva"]},
+        headers=admin_headers,
+    )
+    assert changed.status_code == 200
+    assert changed.json()["generos"] == ["Épico"]
+    assert changed.json()["diretores"] == ["Ana Silva"]
+
+    session_factory = app.dependency_overrides[get_db]
+    async for session in session_factory():
+        assert await session.scalar(select(func.count()).select_from(DimGenre)) == 1
+        assert await session.scalar(select(func.count()).select_from(DimPerson)) == 1
 
 
 async def test_patch_changes_only_sent_fields_and_deletes_movie(client, admin_headers) -> None:
