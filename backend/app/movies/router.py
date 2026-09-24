@@ -5,7 +5,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.auth.security import require_admin
 from app.db.session import get_db
+from app.movies.cache import movie_cache
 from app.movies.models import DimGenre, DimMovie, DimPerson, DimReview, MovieReview
 from app.movies.schemas import (
     MovieCreate,
@@ -32,6 +34,12 @@ async def list_movies(
     genero: str | None = None,
     db: AsyncSession = Depends(get_db),
 ) -> MoviePage:
+    cache_key = ("list", page, page_size, q.strip().lower() if q else None, ano,
+                 genero.strip().lower() if genero else None)
+    cached = movie_cache.get(cache_key)
+    if cached is not None:
+        return cached
+    generation = movie_cache.generation
     filters = []
     if q and q.strip():
         term = q.strip().lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
@@ -69,13 +77,15 @@ async def list_movies(
         )
         for movie in result
     ]
-    return MoviePage(
+    page_result = MoviePage(
         items=items,
         page=page,
         page_size=page_size,
         total=total,
         total_pages=(total + page_size - 1) // page_size,
     )
+    movie_cache.put_if_current(cache_key, page_result, generation)
+    return page_result
 
 
 async def resolve_genres(db: AsyncSession, names: list[str]) -> list[DimGenre]:
@@ -102,7 +112,13 @@ async def resolve_directors(db: AsyncSession, names: list[str]) -> list[DimPerso
     return [found.get(name) or DimPerson(nome_pessoa=name, tipo_pessoa="Diretor") for name in names]
 
 
-@router.post("", response_model=MovieDetail, status_code=201)
+@router.post(
+    "",
+    response_model=MovieDetail,
+    status_code=201,
+    dependencies=[Depends(require_admin)],
+    responses={401: {"description": "Autenticação necessária"}},
+)
 async def create_movie(payload: MovieCreate, db: AsyncSession = Depends(get_db)) -> MovieDetail:
     movie = DimMovie(
         id_filme=f"manual:{uuid4().hex}",
@@ -114,6 +130,7 @@ async def create_movie(payload: MovieCreate, db: AsyncSession = Depends(get_db))
     )
     db.add(movie)
     await db.commit()
+    movie_cache.invalidate()
     return await get_movie(movie.sk_movie_id, db)
 
 
@@ -123,6 +140,11 @@ async def create_movie(payload: MovieCreate, db: AsyncSession = Depends(get_db))
     responses={404: {"description": "Filme não encontrado"}},
 )
 async def get_movie(sk_movie_id: str, db: AsyncSession = Depends(get_db)) -> MovieDetail:
+    cache_key = ("detail", sk_movie_id)
+    cached = movie_cache.get(cache_key)
+    if cached is not None:
+        return cached
+    generation = movie_cache.generation
     movie = await db.scalar(
         select(DimMovie)
         .options(
@@ -137,7 +159,7 @@ async def get_movie(sk_movie_id: str, db: AsyncSession = Depends(get_db)) -> Mov
     if movie is None:
         raise HTTPException(status_code=404, detail="Filme não encontrado")
     summary = movie.reviews_summary
-    return MovieDetail(
+    detail = MovieDetail(
         sk_movie_id=movie.sk_movie_id,
         id_filme=movie.id_filme,
         titulo=movie.titulo,
@@ -167,12 +189,18 @@ async def get_movie(sk_movie_id: str, db: AsyncSession = Depends(get_db)) -> Mov
             else None
         ),
     )
+    movie_cache.put_if_current(cache_key, detail, generation)
+    return detail
 
 
 @router.patch(
     "/{sk_movie_id}",
     response_model=MovieDetail,
-    responses={404: {"description": "Filme não encontrado"}},
+    dependencies=[Depends(require_admin)],
+    responses={
+        401: {"description": "Autenticação necessária"},
+        404: {"description": "Filme não encontrado"},
+    },
 )
 async def patch_movie(
     sk_movie_id: str, payload: MoviePatch, db: AsyncSession = Depends(get_db)
@@ -193,13 +221,18 @@ async def patch_movie(
         movie.people = [person for person in movie.people if person.tipo_pessoa != "Diretor"]
         movie.people.extend(await resolve_directors(db, payload.diretores or []))
     await db.commit()
+    movie_cache.invalidate()
     return await get_movie(sk_movie_id, db)
 
 
 @router.delete(
     "/{sk_movie_id}",
     status_code=204,
-    responses={404: {"description": "Filme não encontrado"}},
+    dependencies=[Depends(require_admin)],
+    responses={
+        401: {"description": "Autenticação necessária"},
+        404: {"description": "Filme não encontrado"},
+    },
 )
 async def delete_movie(sk_movie_id: str, db: AsyncSession = Depends(get_db)) -> None:
     movie = await db.get(DimMovie, sk_movie_id)
@@ -207,6 +240,7 @@ async def delete_movie(sk_movie_id: str, db: AsyncSession = Depends(get_db)) -> 
         raise HTTPException(status_code=404, detail="Filme não encontrado")
     await db.delete(movie)
     await db.commit()
+    movie_cache.invalidate()
 
 
 @router.get(
@@ -220,6 +254,11 @@ async def list_reviews(
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ) -> ReviewPage:
+    cache_key = ("reviews", sk_movie_id, page, page_size)
+    cached = movie_cache.get(cache_key)
+    if cached is not None:
+        return cached
+    generation = movie_cache.generation
     exists = await db.scalar(
         select(DimMovie.sk_movie_id).where(DimMovie.sk_movie_id == sk_movie_id)
     )
@@ -240,7 +279,7 @@ async def list_reviews(
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
-    return ReviewPage(
+    page_result = ReviewPage(
         items=[
             ReviewItem(
                 sk_movie_review_id=review.sk_movie_review_id,
@@ -256,6 +295,8 @@ async def list_reviews(
         total=total,
         total_pages=(total + page_size - 1) // page_size,
     )
+    movie_cache.put_if_current(cache_key, page_result, generation)
+    return page_result
 
 
 @router.post(
@@ -300,6 +341,7 @@ async def create_review(
         summary.qtd_avaliacoes_usuarios = count
         summary.nota_media_usuarios = mean
     await db.commit()
+    movie_cache.invalidate()
     await db.refresh(review)
     return ReviewCreated(
         sk_movie_review_id=review.sk_movie_review_id,

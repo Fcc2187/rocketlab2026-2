@@ -16,6 +16,7 @@ cd backend
 py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 Copy-Item .env.example .env
+# Preencha ADMIN_USERNAME, ADMIN_PASSWORD_HASH e AUTH_SECRET_KEY no .env
 .\.venv\Scripts\python.exe -m alembic upgrade head
 .\.venv\Scripts\python.exe -m app.movies.import_csv ..\dados
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
@@ -30,12 +31,28 @@ cd backend
 python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
 cp .env.example .env
+# Preencha ADMIN_USERNAME, ADMIN_PASSWORD_HASH e AUTH_SECRET_KEY no .env
 .venv/bin/python -m alembic upgrade head
 .venv/bin/python -m app.movies.import_csv ../dados
 .venv/bin/python -m uvicorn app.main:app --reload
 ```
 
 A API fica em `http://localhost:8000`, a documentação interativa em `http://localhost:8000/docs` e o teste de inicialização em `GET /health`.
+
+### Configurar o administrador
+
+Defina `ADMIN_USERNAME` no `backend/.env`. Gere um hash Argon2 para `ADMIN_PASSWORD_HASH` e uma chave aleatória para `AUTH_SECRET_KEY`. No PowerShell, dentro de `backend/`:
+
+```powershell
+.\.venv\Scripts\python.exe -c "from getpass import getpass; from pwdlib import PasswordHash; print(PasswordHash.recommended().hash(getpass('Senha do administrador: ')))"
+.\.venv\Scripts\python.exe -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+No macOS/Linux, substitua o executável por `.venv/bin/python`. Copie os dois resultados para as respectivas variáveis no `.env`. Não versione esse arquivo nem coloque senha ou chave reais no código. O servidor recusa iniciar se as credenciais estiverem ausentes ou inválidas.
+
+Faça login em `POST /api/v1/auth/login` com JSON `{"username":"<seu usuário>","password":"<sua senha>"}`. A resposta traz `access_token`, `token_type: "bearer"` e `expires_in: 1800` (30 minutos). Envie `Authorization: Bearer <access_token>` ao cadastrar, editar ou excluir filmes. Em `/docs`, use a rota de login e depois o botão **Authorize**. Para sair, descarte o token; para revogar todos os tokens emitidos, troque `AUTH_SECRET_KEY` e reinicie a API. O frontend futuro deverá guardar o token apenas em memória.
+
+O desenvolvimento local usa `localhost`. Antes de expor o login na internet, sirva a API por HTTPS e limite tentativas repetidas na borda; credenciais não devem trafegar em HTTP público.
 
 A carga importa os dez CSVs em uma transação, exige o esquema criado pelo Alembic e recusa a repetição em um catálogo já preenchido. O banco local padrão é `backend/rocketlab.db`, configurável por `DATABASE_URL` em `.env`. Para começar com outro banco, aponte `DATABASE_URL` para um novo arquivo SQLite e execute a migração e a carga nesse arquivo. A carga reconcilia `dim_reviews` com as avaliações individuais.
 
@@ -45,6 +62,7 @@ Todas as rotas abaixo usam o prefixo `/api/v1`. `page` começa em 1; `page_size`
 
 | Método | Rota | Uso |
 | --- | --- | --- |
+| POST | `/auth/login` | Autentica o administrador e emite um token de 30 minutos |
 | GET | `/movies` | Catálogo paginado; filtros opcionais `q` (título), `ano` e `genero` |
 | GET | `/movies/{sk_movie_id}` | Detalhes completos, pessoas, produtoras, métricas e média |
 | POST | `/movies` | Cadastra um filme |
@@ -52,6 +70,8 @@ Todas as rotas abaixo usam o prefixo `/api/v1`. `page` começa em 1; `page_size`
 | DELETE | `/movies/{sk_movie_id}` | Remove o filme e suas avaliações/vínculos |
 | GET | `/movies/{sk_movie_id}/reviews` | Histórico paginado de avaliações |
 | POST | `/movies/{sk_movie_id}/reviews` | Registra uma avaliação e atualiza a média |
+
+Somente `POST /movies`, `PATCH /movies/{sk_movie_id}` e `DELETE /movies/{sk_movie_id}` exigem o token do administrador. **Qualquer pessoa pode registrar uma avaliação sem login.** Token ausente, inválido ou expirado nas rotas administrativas recebe `401`.
 
 Exemplo de filme:
 
@@ -79,6 +99,12 @@ Exemplo de avaliação:
 
 Novas avaliações aceitam de 1 a 5 estrelas, inclusive decimais. O banco e os CSVs usam notas de 0 a 10: a API multiplica por 2 ao gravar e divide por 2 ao exibir notas e médias. Por isso uma nota histórica de 0,9/10 aparece como 0,45 estrela. Filmes sem avaliações mostram quantidade 0 e média `null`.
 
+### Cache de consultas
+
+As três leituras de filmes (`GET /movies`, `GET /movies/{id}` e `GET /movies/{id}/reviews`) usam um cache local de até 256 respostas por processo. Cada entrada expira em 30 segundos por padrão; `CACHE_TTL_SECONDS=0` desliga o cache. Cadastro, edição, exclusão e nova avaliação limpam o cache após o commit, de modo que as leituras seguintes no mesmo processo reflitam a escrita.
+
+O comando de importação dos CSVs deve rodar antes de iniciar a API. A execução documentada usa um processo Uvicorn. Se houver vários processos, cada um terá seu próprio cache e poderá exibir dados anteriores por até 30 segundos após uma escrita feita por outro processo.
+
 ## Verificações
 
 Dentro de `backend/`:
@@ -88,4 +114,4 @@ Dentro de `backend/`:
 .\.venv\Scripts\python.exe -m ruff check app tests
 ```
 
-No macOS/Linux, use `.venv/bin/python` no lugar de `.\.venv\Scripts\python.exe`. Os testes HTTP usam um banco temporário migrado pelo Alembic e não alteram o banco local. O projeto não inclui contas ou login nesta fase; o administrador é o operador previsto no enunciado.
+No macOS/Linux, use `.venv/bin/python` no lugar de `.\.venv\Scripts\python.exe`. Os testes HTTP usam um banco temporário migrado pelo Alembic e não alteram o banco local.

@@ -118,7 +118,7 @@ async def test_movie_detail_contains_related_data_and_review_average(client) -> 
     assert (await client.get("/api/v1/movies/missing")).status_code == 404
 
 
-async def test_create_movies_with_same_title_and_validate_names(client) -> None:
+async def test_create_movies_with_same_title_and_validate_names(client, admin_headers) -> None:
     payload = {
         "titulo": " Filme novo ",
         "ano_lancamento": 2024,
@@ -126,8 +126,8 @@ async def test_create_movies_with_same_title_and_validate_names(client) -> None:
         "diretores": ["Ana"],
     }
 
-    first = await client.post("/api/v1/movies", json=payload)
-    second = await client.post("/api/v1/movies", json=payload)
+    first = await client.post("/api/v1/movies", json=payload, headers=admin_headers)
+    second = await client.post("/api/v1/movies", json=payload, headers=admin_headers)
 
     assert first.status_code == second.status_code == 201
     assert first.json()["titulo"] == "Filme novo"
@@ -135,13 +135,19 @@ async def test_create_movies_with_same_title_and_validate_names(client) -> None:
     assert first.json()["sk_movie_id"] != second.json()["sk_movie_id"]
     assert first.json()["diretores"] == ["Ana"]
     assert (await client.get("/api/v1/movies")).json()["total"] == 2
-    assert (await client.post("/api/v1/movies", json={"titulo": "   "})).status_code == 422
     assert (
-        await client.post("/api/v1/movies", json={"titulo": "Novo", "generos": ["", "Drama"]})
+        await client.post("/api/v1/movies", json={"titulo": "   "}, headers=admin_headers)
+    ).status_code == 422
+    assert (
+        await client.post(
+            "/api/v1/movies",
+            json={"titulo": "Novo", "generos": ["", "Drama"]},
+            headers=admin_headers,
+        )
     ).status_code == 422
 
 
-async def test_patch_changes_only_sent_fields_and_delete_removes_movie(client) -> None:
+async def test_patch_changes_only_sent_fields_and_deletes_movie(client, admin_headers) -> None:
     session_factory = app.dependency_overrides[get_db]
     async for session in session_factory():
         session.add(
@@ -163,6 +169,7 @@ async def test_patch_changes_only_sent_fields_and_delete_removes_movie(client) -
     response = await client.patch(
         f"/api/v1/movies/{'m' * 64}",
         json={"ano_lancamento": 2001, "diretores": [], "generos": ["Comedy"]},
+        headers=admin_headers,
     )
 
     assert response.status_code == 200
@@ -171,8 +178,10 @@ async def test_patch_changes_only_sent_fields_and_delete_removes_movie(client) -
     assert response.json()["generos"] == ["Comedy"]
     assert response.json()["diretores"] == []
     assert response.json()["atores"] == ["Bia"]
-    assert (await client.patch("/api/v1/movies/missing", json={"titulo": "X"})).status_code == 404
-    deleted = await client.delete(f"/api/v1/movies/{'m' * 64}")
+    assert (
+        await client.patch("/api/v1/movies/missing", json={"titulo": "X"}, headers=admin_headers)
+    ).status_code == 404
+    deleted = await client.delete(f"/api/v1/movies/{'m' * 64}", headers=admin_headers)
     assert deleted.status_code == 204
     assert (await client.get(f"/api/v1/movies/{'m' * 64}")).status_code == 404
-    assert (await client.delete("/api/v1/movies/missing")).status_code == 404
+    assert (await client.delete("/api/v1/movies/missing", headers=admin_headers)).status_code == 404
