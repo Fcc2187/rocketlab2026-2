@@ -80,6 +80,14 @@ class ReviewPage(BaseModel):
 
 
 class ReviewCreate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {"nome": "Maria", "nota_estrelas": 4.5, "comentario": "Gostei."}
+            ]
+        }
+    )
+
     nome: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
     nota_estrelas: float = Field(ge=1, le=5, allow_inf_nan=False)
     comentario: Annotated[
@@ -93,6 +101,8 @@ class ReviewCreated(ReviewItem):
 
 
 class MoviePatch(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"examples": [{"ano_lancamento": 2024}]})
+
     titulo: Title | None = None
     ano_lancamento: int | None = Field(default=None, ge=1, le=9999)
     sinopse: str | None = Field(default=None, max_length=4000)
@@ -115,6 +125,20 @@ class MoviePatch(BaseModel):
 
 
 class MovieCreate(MoviePatch):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "titulo": "Meu filme",
+                    "ano_lancamento": 2024,
+                    "sinopse": "Uma história.",
+                    "generos": ["Drama"],
+                    "diretores": ["Ana Silva"],
+                }
+            ]
+        }
+    )
+
     titulo: Title
     generos: list[GenreName] = Field(default_factory=list)
     diretores: list[PersonName] = Field(default_factory=list)

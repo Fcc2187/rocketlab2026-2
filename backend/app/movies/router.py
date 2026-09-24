@@ -117,7 +117,11 @@ async def create_movie(payload: MovieCreate, db: AsyncSession = Depends(get_db))
     return await get_movie(movie.sk_movie_id, db)
 
 
-@router.get("/{sk_movie_id}", response_model=MovieDetail)
+@router.get(
+    "/{sk_movie_id}",
+    response_model=MovieDetail,
+    responses={404: {"description": "Filme não encontrado"}},
+)
 async def get_movie(sk_movie_id: str, db: AsyncSession = Depends(get_db)) -> MovieDetail:
     movie = await db.scalar(
         select(DimMovie)
@@ -165,7 +169,11 @@ async def get_movie(sk_movie_id: str, db: AsyncSession = Depends(get_db)) -> Mov
     )
 
 
-@router.patch("/{sk_movie_id}", response_model=MovieDetail)
+@router.patch(
+    "/{sk_movie_id}",
+    response_model=MovieDetail,
+    responses={404: {"description": "Filme não encontrado"}},
+)
 async def patch_movie(
     sk_movie_id: str, payload: MoviePatch, db: AsyncSession = Depends(get_db)
 ) -> MovieDetail:
@@ -188,7 +196,11 @@ async def patch_movie(
     return await get_movie(sk_movie_id, db)
 
 
-@router.delete("/{sk_movie_id}", status_code=204)
+@router.delete(
+    "/{sk_movie_id}",
+    status_code=204,
+    responses={404: {"description": "Filme não encontrado"}},
+)
 async def delete_movie(sk_movie_id: str, db: AsyncSession = Depends(get_db)) -> None:
     movie = await db.get(DimMovie, sk_movie_id)
     if movie is None:
@@ -197,7 +209,11 @@ async def delete_movie(sk_movie_id: str, db: AsyncSession = Depends(get_db)) -> 
     await db.commit()
 
 
-@router.get("/{sk_movie_id}/reviews", response_model=ReviewPage)
+@router.get(
+    "/{sk_movie_id}/reviews",
+    response_model=ReviewPage,
+    responses={404: {"description": "Filme não encontrado"}},
+)
 async def list_reviews(
     sk_movie_id: str,
     page: int = Query(1, ge=1),
@@ -242,7 +258,12 @@ async def list_reviews(
     )
 
 
-@router.post("/{sk_movie_id}/reviews", response_model=ReviewCreated, status_code=201)
+@router.post(
+    "/{sk_movie_id}/reviews",
+    response_model=ReviewCreated,
+    status_code=201,
+    responses={404: {"description": "Filme não encontrado"}},
+)
 async def create_review(
     sk_movie_id: str, payload: ReviewCreate, db: AsyncSession = Depends(get_db)
 ) -> ReviewCreated:
