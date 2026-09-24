@@ -30,7 +30,7 @@ async def list_movies(
     genero: str | None = None,
 ) -> MoviePage:
     cache_key = ("list", page, page_size, q.strip().casefold() if q else None, ano,
-                 genero.strip().lower() if genero else None)
+                 genero.strip().casefold() if genero else None)
     cached = movie_cache.get(cache_key)
     if cached is not None:
         return cached
@@ -43,7 +43,9 @@ async def list_movies(
         filters.append(DimMovie.ano_lancamento == ano)
     if genero and genero.strip():
         filters.append(
-            DimMovie.genres.any(func.lower(DimGenre.nome_genero) == genero.strip().lower())
+            DimMovie.genres.any(
+                func.unicode_casefold(DimGenre.nome_genero) == genero.strip().casefold()
+            )
         )
     total = await db.scalar(select(func.count()).select_from(DimMovie).where(*filters)) or 0
     result = await db.scalars(

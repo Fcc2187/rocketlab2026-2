@@ -95,6 +95,25 @@ async def test_catalog_search_ignores_case_for_accented_letters(client) -> None:
     assert [item["titulo"] for item in response.json()["items"]] == ["Épico"]
 
 
+async def test_catalog_genre_filter_ignores_case_for_accented_letters(client) -> None:
+    session_factory = app.dependency_overrides[get_db]
+    async for session in session_factory():
+        session.add_all(
+            [
+                DimMovie(id_filme="1", titulo="Aventura", genres=[DimGenre(nome_genero="Épico")]),
+                DimMovie(id_filme="2", titulo="Comédia"),
+            ]
+        )
+        await session.commit()
+
+    response = await client.get("/api/v1/movies", params={"genero": "ÉPICO"})
+
+    assert response.status_code == 200
+    assert response.json()["total"] == 1
+    assert [item["titulo"] for item in response.json()["items"]] == ["Aventura"]
+    assert response.json()["items"][0]["generos"] == ["Épico"]
+
+
 async def test_movie_detail_contains_related_data_and_review_average(client) -> None:
     session_factory = app.dependency_overrides[get_db]
     async for session in session_factory():
