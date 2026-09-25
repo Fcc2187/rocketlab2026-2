@@ -25,6 +25,7 @@ O frontend abre em `http://localhost:5173` e usa a API em `http://localhost:8000
 ## Requisitos
 
 - Python 3.11 ou superior
+- Node.js com npm
 - Os dez arquivos CSV em `dados/`, já incluídos neste repositório
 
 ## Executar no Windows (PowerShell)
@@ -76,6 +77,11 @@ O desenvolvimento local usa `localhost`. Antes de expor o login na internet, sir
 
 A carga importa os dez CSVs em uma transação, exige o esquema criado pelo Alembic e recusa a repetição em um catálogo já preenchido. O banco local padrão é `backend/rocketlab.db`, configurável por `DATABASE_URL` em `.env`. Para começar com outro banco, aponte `DATABASE_URL` para um novo arquivo SQLite e execute a migração e a carga nesse arquivo. A carga reconcilia `dim_reviews` com as avaliações individuais.
 
+### Ordem de execução
+
+1. Configure e inicie o backend, aplicando a migração e importando os CSVs.
+2. Em outro terminal, entre em `frontend/`, instale as dependências com `npm ci` e inicie o frontend com `npm run dev`.
+
 ## API
 
 Todas as rotas abaixo usam o prefixo `/api/v1`. `page` começa em 1; `page_size` começa em 20 e aceita até 100. As listagens retornam `items`, `page`, `page_size`, `total` e `total_pages`.
@@ -126,8 +132,6 @@ Avaliações novas e históricas usam a escala de 0 a 10, inclusive valores deci
 As leituras de filmes, filtros, destaque e avaliações (`GET /movies`, `GET /movies/filters`, `GET /movies/featured`, `GET /movies/{id}` e `GET /movies/{id}/reviews`) usam um cache local de até 256 respostas por processo. Cada entrada expira em 30 segundos por padrão; `CACHE_TTL_SECONDS=0` desliga o cache. Cadastro, edição, exclusão e nova avaliação limpam o cache após o commit, de modo que as leituras seguintes no mesmo processo reflitam a escrita.
 
 O comando de importação dos CSVs deve rodar antes de iniciar a API. A execução documentada usa um processo Uvicorn. Se houver vários processos, cada um terá seu próprio cache e poderá exibir dados anteriores por até 30 segundos após uma escrita feita por outro processo.
-
-O arquivo `frontend/CineRate-catalogo-final.html` é referência visual e de comportamento. A aplicação funcional está em `frontend/src/` e lê/escreve os dados pela API.
 
 ### Apresentação dos títulos
 

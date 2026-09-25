@@ -22,7 +22,19 @@ export async function request<T>(path: string, options: RequestInit = {}, token?
   if (response.status === 204) return undefined as T
   const data = await response.json().catch(() => null)
   if (!response.ok) {
-    const message = typeof data?.detail === 'string' ? data.detail : 'Não foi possível concluir a operação.'
+    let message = 'Não foi possível concluir a operação.'
+    if (typeof data?.detail === 'string') {
+      message = data.detail
+    } else if (Array.isArray(data?.detail)) {
+      const first = data.detail[0]
+      if (first && typeof first === 'object') {
+        const detailMessage = typeof first.msg === 'string' ? first.msg : null
+        const location = Array.isArray(first.loc)
+          ? first.loc.filter((part: unknown) => part !== 'body').join('.')
+          : ''
+        if (detailMessage) message = location ? `${location}: ${detailMessage}` : detailMessage
+      }
+    }
     throw new ApiError(response.status, message)
   }
   return data as T

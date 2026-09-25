@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import userEvent from '@testing-library/user-event'
 import { StrictMode } from 'react'
 import App from './App'
+import { MovieCard } from './components/MovieCard'
 import type { MovieDetail, ReviewItem } from './api/types'
 
 const movie: MovieDetail = {
@@ -121,6 +122,18 @@ test('catálogo mostra primeiro os filmes com pôster e limpa aspas externas do 
   expect(within(cards[1]).getByRole('button', { name: 'Ver detalhes de biography: "stone Cold" Steve Austin' })).toBeTruthy()
   expect(within(cards[0]).queryByText(/"blessed"/)).toBeNull()
   expect(api.calls.some(call => call.url.includes('poster_first=true'))).toBe(true)
+})
+
+test('menu administrativo fecha antes de executar uma ação', async () => {
+  const onDetails = vi.fn()
+  const menuMovie = { ...movie, titulo: 'Filme do menu' }
+  render(<MovieCard movie={menuMovie} admin onDetails={onDetails} onReview={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} />)
+  const menu = screen.getByLabelText('Opções para Filme do menu').parentElement as HTMLDetailsElement
+  fireEvent.click(within(menu).getByText('⋯'))
+  expect(menu.open).toBe(true)
+  fireEvent.click(within(menu).getByRole('button', { name: 'Ver detalhes' }))
+  expect(menu.open).toBe(false)
+  expect(onDetails).toHaveBeenCalledOnce()
 })
 
 test('destaque global continua igual quando a busca muda', async () => {

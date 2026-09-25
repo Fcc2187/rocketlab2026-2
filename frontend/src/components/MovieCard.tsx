@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import type { MovieListItem } from '../api/types'
 import { movieTitle } from '../movieTitle'
 import { Poster, Rating } from './ui'
@@ -7,13 +8,18 @@ export function MovieCard({ movie, admin, onDetails, onReview, onEdit, onDelete 
   onDetails: () => void; onReview: () => void; onEdit: () => void; onDelete: () => void
 }) {
   const title = movieTitle(movie.titulo)
+  const menuRef = useRef<HTMLDetailsElement>(null)
+  const chooseAction = (callback: () => void) => {
+    menuRef.current?.removeAttribute('open')
+    callback()
+  }
   return <article className="movie-card group relative flex h-full min-w-0 flex-col">
-    {admin && <details className="absolute right-2 top-2 z-10 rounded-lg bg-bg/90 text-sm shadow-lg [&_summary]:list-none">
+    {admin && <details ref={menuRef} className="absolute right-2 top-2 z-10 rounded-lg bg-bg/90 text-sm shadow-lg [&_summary]:list-none">
       <summary className="grid h-10 w-10 cursor-pointer place-items-center rounded-lg text-xl focus-visible:outline-2 focus-visible:outline-accent" aria-label={`Opções para ${title}`}>⋯</summary>
       <div className="absolute right-0 mt-1 grid w-40 rounded-lg border border-line bg-surface p-1 shadow-xl">
-        <button className="rounded px-3 py-2 text-left hover:bg-surface2" onClick={onDetails}>Ver detalhes</button>
-        <button className="rounded px-3 py-2 text-left hover:bg-surface2" onClick={onEdit}>Editar</button>
-        <button className="rounded px-3 py-2 text-left text-danger hover:bg-surface2" onClick={onDelete}>Excluir</button>
+        <button className="rounded px-3 py-2 text-left hover:bg-surface2" onClick={() => chooseAction(onDetails)}>Ver detalhes</button>
+        <button className="rounded px-3 py-2 text-left hover:bg-surface2" onClick={() => chooseAction(onEdit)}>Editar</button>
+        <button className="rounded px-3 py-2 text-left text-danger hover:bg-surface2" onClick={() => chooseAction(onDelete)}>Excluir</button>
       </div>
     </details>}
     <button type="button" onClick={onDetails} className="block w-full text-left" aria-label={`Ver detalhes de ${title}`}><Poster src={movie.url_poster} title={title} /></button>
