@@ -1,6 +1,6 @@
 ﻿# RocketLab 2026.2
 
-API FastAPI e banco SQLite para o catálogo e as avaliações de filmes da atividade. O frontend Vite + React + TypeScript já possui o setup inicial; páginas e design system serão definidos na próxima fase.
+API FastAPI e banco SQLite para o catálogo e as avaliações de filmes da atividade. O frontend é uma SPA em Vite, React, TypeScript e Tailwind.
 
 ## Frontend
 
@@ -10,7 +10,17 @@ npm ci
 npm run dev
 ```
 
-O setup abre uma aplicação vazia em `http://localhost:5173`.
+O frontend abre em `http://localhost:5173` e usa a API em `http://localhost:8000/api/v1` por padrão. Para outra URL, copie `frontend/.env.example` para `frontend/.env` e ajuste `VITE_API_URL` antes de iniciar o Vite. O catálogo e as avaliações são públicos; o login em modal libera o cadastro, a edição e a exclusão. O token administrativo fica apenas em memória.
+
+## Funcionalidades principais
+
+- Catálogo público com busca por título, filtros por gênero e ano, ordenação visual por pôster e paginação.
+- Detalhes do filme com elenco, diretores, gêneros, métricas e histórico paginado de avaliações.
+- Avaliações públicas sem login, usando notas de 0 a 10 e atualização da média após o envio.
+- Login administrativo em modal, com cadastro, edição e exclusão de filmes protegidos por JWT.
+- Filme em destaque global: exige imagem e pelo menos 3 avaliações; escolhe a maior média e usa a quantidade de avaliações como desempate. A busca e os filtros do catálogo não alteram esse destaque.
+- Resolução case-insensitive de gêneros e diretores, incluindo caracteres acentuados, sem criar entidades duplicadas.
+- Cache local das leituras, invalidado depois de escritas bem-sucedidas.
 
 ## Requisitos
 
@@ -60,7 +70,7 @@ Defina `ADMIN_USERNAME` no `backend/.env`. Gere um hash Argon2 para `ADMIN_PASSW
 
 No macOS/Linux, substitua o executável por `.venv/bin/python`. Copie os dois resultados para as respectivas variáveis no `.env`. Não versione esse arquivo nem coloque senha ou chave reais no código. O servidor recusa iniciar se as credenciais estiverem ausentes ou inválidas.
 
-Faça login em `POST /api/v1/auth/login` com JSON `{"username":"<seu usuário>","password":"<sua senha>"}`. A resposta traz `access_token`, `token_type: "bearer"` e `expires_in: 1800` (30 minutos). Envie `Authorization: Bearer <access_token>` ao cadastrar, editar ou excluir filmes. Em `/docs`, use a rota de login e depois o botão **Authorize**. Para sair, descarte o token; para revogar todos os tokens emitidos, troque `AUTH_SECRET_KEY` e reinicie a API. O frontend futuro deverá guardar o token apenas em memória.
+Faça login em `POST /api/v1/auth/login` com JSON `{"username":"<seu usuário>","password":"<sua senha>"}`. A resposta traz `access_token`, `token_type: "bearer"` e `expires_in: 1800` (30 minutos). Envie `Authorization: Bearer <access_token>` ao cadastrar, editar ou excluir filmes. Em `/docs`, use a rota de login e depois o botão **Authorize**. Para sair, descarte o token; para revogar todos os tokens emitidos, troque `AUTH_SECRET_KEY` e reinicie a API. O frontend guarda o token apenas em memória.
 
 O desenvolvimento local usa `localhost`. Antes de expor o login na internet, sirva a API por HTTPS e limite tentativas repetidas na borda; credenciais não devem trafegar em HTTP público.
 
@@ -73,7 +83,9 @@ Todas as rotas abaixo usam o prefixo `/api/v1`. `page` começa em 1; `page_size`
 | Método | Rota | Uso |
 | --- | --- | --- |
 | POST | `/auth/login` | Autentica o administrador e emite um token de 30 minutos |
-| GET | `/movies` | Catálogo paginado; filtros opcionais `q` (título), `ano` e `genero` |
+| GET | `/movies` | Catálogo paginado; filtros opcionais `q` (título), `ano` e `genero`; `poster_first=true` prioriza filmes com pôster |
+| GET | `/movies/filters` | Gêneros e anos disponíveis para os filtros do frontend |
+| GET | `/movies/featured` | Destaque global: maior média entre filmes com imagem e pelo menos 3 avaliações; desempate pela quantidade; sem elegíveis, sugere um filme com imagem |
 | GET | `/movies/{sk_movie_id}` | Detalhes completos, pessoas, produtoras, métricas e média |
 | POST | `/movies` | Cadastra um filme |
 | PATCH | `/movies/{sk_movie_id}` | Atualiza somente os campos enviados |
@@ -111,9 +123,15 @@ Avaliações novas e históricas usam a escala de 0 a 10, inclusive valores deci
 
 ### Cache de consultas
 
-As três leituras de filmes (`GET /movies`, `GET /movies/{id}` e `GET /movies/{id}/reviews`) usam um cache local de até 256 respostas por processo. Cada entrada expira em 30 segundos por padrão; `CACHE_TTL_SECONDS=0` desliga o cache. Cadastro, edição, exclusão e nova avaliação limpam o cache após o commit, de modo que as leituras seguintes no mesmo processo reflitam a escrita.
+As leituras de filmes, filtros, destaque e avaliações (`GET /movies`, `GET /movies/filters`, `GET /movies/featured`, `GET /movies/{id}` e `GET /movies/{id}/reviews`) usam um cache local de até 256 respostas por processo. Cada entrada expira em 30 segundos por padrão; `CACHE_TTL_SECONDS=0` desliga o cache. Cadastro, edição, exclusão e nova avaliação limpam o cache após o commit, de modo que as leituras seguintes no mesmo processo reflitam a escrita.
 
 O comando de importação dos CSVs deve rodar antes de iniciar a API. A execução documentada usa um processo Uvicorn. Se houver vários processos, cada um terá seu próprio cache e poderá exibir dados anteriores por até 30 segundos após uma escrita feita por outro processo.
+
+O arquivo `frontend/CineRate-catalogo-final.html` é referência visual e de comportamento. A aplicação funcional está em `frontend/src/` e lê/escreve os dados pela API.
+
+### Apresentação dos títulos
+
+Alguns títulos importados podem conter aspas externas ou aspas duplicadas no formato original. O frontend remove apenas essas camadas de apresentação: `"""blessed"""` aparece como `blessed`, e `"biography: ""stone Cold"" Steve Austin"` aparece como `biography: "stone Cold" Steve Austin`. Essa normalização é somente visual; o valor original do título no banco e na API não é alterado.
 
 ## Verificações
 
@@ -125,3 +143,5 @@ Dentro de `backend/`:
 ```
 
 No macOS/Linux, use `.venv/bin/python` no lugar de `.\.venv\Scripts\python.exe`. Os testes HTTP usam um banco temporário migrado pelo Alembic e não alteram o banco local.
+
+Para verificar o frontend, execute `npm test`, `npm run lint` e `npm run build` dentro de `frontend/`.

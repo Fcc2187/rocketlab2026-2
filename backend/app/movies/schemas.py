@@ -33,6 +33,11 @@ class MoviePage(BaseModel):
     total_pages: int
 
 
+class MovieFilterOptions(BaseModel):
+    generos: list[str]
+    anos: list[int]
+
+
 class MoviePerformance(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

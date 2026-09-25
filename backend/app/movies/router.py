@@ -6,6 +6,7 @@ from app.movies import service
 from app.movies.schemas import (
     MovieCreate,
     MovieDetail,
+    MovieFilterOptions,
     MoviePage,
     MoviePatch,
     ReviewCreate,
@@ -24,8 +25,19 @@ async def list_movies(
     q: str | None = None,
     ano: int | None = None,
     genero: str | None = None,
+    poster_first: bool = False,
 ) -> MoviePage:
-    return await service.list_movies(db, page, page_size, q, ano, genero)
+    return await service.list_movies(db, page, page_size, q, ano, genero, poster_first)
+
+
+@router.get("/filters", response_model=MovieFilterOptions)
+async def movie_filter_options(db: SessionDep) -> MovieFilterOptions:
+    return await service.movie_filter_options(db)
+
+
+@router.get("/featured", response_model=MovieDetail | None)
+async def featured_movie(db: SessionDep) -> MovieDetail | None:
+    return await service.featured_movie(db)
 
 
 @router.post(

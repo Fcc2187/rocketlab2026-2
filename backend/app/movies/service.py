@@ -1,15 +1,23 @@
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.movies.cache import movie_cache
-from app.movies.models import DimGenre, DimMovie, DimPerson, DimReview, MovieReview
+from app.movies.models import (
+    DimGenre,
+    DimMovie,
+    DimPerson,
+    DimReview,
+    FactMoviePerformance,
+    MovieReview,
+)
 from app.movies.schemas import (
     MovieCreate,
     MovieDetail,
+    MovieFilterOptions,
     MovieListItem,
     MoviePage,
     MoviePatch,
@@ -28,9 +36,10 @@ async def list_movies(
     q: str | None = None,
     ano: int | None = None,
     genero: str | None = None,
+    poster_first: bool = False,
 ) -> MoviePage:
     cache_key = ("list", page, page_size, q.strip().casefold() if q else None, ano,
-                 genero.strip().casefold() if genero else None)
+                 genero.strip().casefold() if genero else None, poster_first)
     cached = movie_cache.get(cache_key)
     if cached is not None:
         return cached
@@ -52,7 +61,12 @@ async def list_movies(
         select(DimMovie)
         .where(*filters)
         .options(selectinload(DimMovie.genres), selectinload(DimMovie.reviews_summary))
-        .order_by(DimMovie.titulo, DimMovie.sk_movie_id)
+        .order_by(
+            *([case((func.trim(DimMovie.url_poster) != "", 0), else_=1)]
+              if poster_first else []),
+            DimMovie.titulo,
+            DimMovie.sk_movie_id,
+        )
         .offset(min((page - 1) * page_size, 2**63 - 1))
         .limit(page_size)
     )
@@ -83,6 +97,76 @@ async def list_movies(
     )
     movie_cache.put_if_current(cache_key, page_result, generation)
     return page_result
+
+
+async def movie_filter_options(db: AsyncSession) -> MovieFilterOptions:
+    cache_key = ("filters",)
+    cached = movie_cache.get(cache_key)
+    if cached is not None:
+        return cached
+    generation = movie_cache.generation
+    names = await db.scalars(
+        select(DimGenre.nome_genero)
+        .where(DimGenre.movies.any())
+        .order_by(func.unicode_casefold(DimGenre.nome_genero), DimGenre.nome_genero)
+    )
+    genres = list({name.casefold(): name for name in names}.values())
+    years = await db.scalars(
+        select(DimMovie.ano_lancamento)
+        .where(DimMovie.ano_lancamento.is_not(None))
+        .distinct()
+        .order_by(DimMovie.ano_lancamento.desc())
+    )
+    options = MovieFilterOptions(generos=genres, anos=list(years))
+    movie_cache.put_if_current(cache_key, options, generation)
+    return options
+
+
+async def featured_movie(db: AsyncSession) -> MovieDetail | None:
+    cache_key = ("featured",)
+    cached = movie_cache.get(cache_key)
+    if cached is not None:
+        return cached
+    generation = movie_cache.generation
+    has_image = or_(
+        func.trim(DimMovie.url_backdrop) != "",
+        func.trim(DimMovie.url_poster) != "",
+    )
+    movie_id = await db.scalar(
+        select(DimMovie.sk_movie_id)
+        .join(DimMovie.reviews_summary)
+        .where(
+            DimReview.qtd_avaliacoes_usuarios >= 3,
+            DimReview.nota_media_usuarios.is_not(None),
+            has_image,
+        )
+        .order_by(
+            DimReview.nota_media_usuarios.desc(),
+            DimReview.qtd_avaliacoes_usuarios.desc(),
+            DimMovie.titulo,
+            DimMovie.sk_movie_id,
+        )
+        .limit(1)
+    )
+    if movie_id is None:
+        movie_id = await db.scalar(
+            select(DimMovie.sk_movie_id)
+            .outerjoin(DimMovie.performance)
+            .where(has_image)
+            .order_by(
+                case((func.trim(DimMovie.url_backdrop) != "", 0), else_=1),
+                case((func.trim(DimMovie.url_poster) != "", 0), else_=1),
+                func.coalesce(FactMoviePerformance.popularidade, 0).desc(),
+                DimMovie.titulo,
+                DimMovie.sk_movie_id,
+            )
+            .limit(1)
+        )
+    if movie_id is None:
+        return None
+    detail = await get_movie(movie_id, db)
+    movie_cache.put_if_current(cache_key, detail, generation)
+    return detail
 
 
 async def resolve_genres(db: AsyncSession, names: list[str]) -> list[DimGenre]:

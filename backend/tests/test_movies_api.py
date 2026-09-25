@@ -114,6 +114,132 @@ async def test_catalog_genre_filter_ignores_case_for_accented_letters(client) ->
     assert response.json()["items"][0]["generos"] == ["Épico"]
 
 
+async def test_catalog_can_prioritize_posters_across_pages(client) -> None:
+    session_factory = app.dependency_overrides[get_db]
+    async for session in session_factory():
+        session.add_all(
+            [
+                DimMovie(id_filme="1", titulo="A sem pôster"),
+                DimMovie(id_filme="2", titulo="B com pôster", url_poster="https://example.com/b.jpg"),
+                DimMovie(id_filme="3", titulo="C com pôster", url_poster="https://example.com/c.jpg"),
+            ]
+        )
+        await session.commit()
+
+    first = await client.get("/api/v1/movies?poster_first=true&page_size=1")
+    second = await client.get("/api/v1/movies?poster_first=true&page_size=1&page=2")
+    default = await client.get("/api/v1/movies?page_size=1")
+
+    assert first.status_code == second.status_code == 200
+    assert first.json()["total"] == 3
+    assert [first.json()["items"][0]["titulo"], second.json()["items"][0]["titulo"]] == [
+        "B com pôster", "C com pôster"
+    ]
+    assert default.json()["items"][0]["titulo"] == "A sem pôster"
+
+
+async def test_filter_options_come_from_movies_in_database(client, admin_headers) -> None:
+    session_factory = app.dependency_overrides[get_db]
+    async for session in session_factory():
+        session.add_all(
+            [
+                DimMovie(id_filme="1", titulo="Um", ano_lancamento=2024,
+                         genres=[DimGenre(nome_genero="Épico")]),
+                DimMovie(id_filme="2", titulo="Dois", ano_lancamento=2020,
+                         genres=[DimGenre(nome_genero="Drama")]),
+            ]
+        )
+        await session.commit()
+
+    response = await client.get("/api/v1/movies/filters")
+
+    assert response.status_code == 200
+    assert response.json() == {"generos": ["Drama", "Épico"], "anos": [2024, 2020]}
+
+    created = await client.post(
+        "/api/v1/movies",
+        json={"titulo": "Três", "ano_lancamento": 2025, "generos": ["Aventura"]},
+        headers=admin_headers,
+    )
+    assert created.status_code == 201
+    assert (await client.get("/api/v1/movies/filters")).json() == {
+        "generos": ["Aventura", "Drama", "Épico"], "anos": [2025, 2024, 2020]
+    }
+
+
+async def test_featured_movie_uses_image_fallback_until_three_reviews(client) -> None:
+    empty = await client.get("/api/v1/movies/featured")
+    assert empty.status_code == 200
+    assert empty.json() is None
+
+    session_factory = app.dependency_overrides[get_db]
+    async for session in session_factory():
+        session.add(DimMovie(id_filme="1", titulo="A sem imagem"))
+        await session.commit()
+
+    no_image = await client.get("/api/v1/movies/featured")
+    assert no_image.json() is None
+
+    async for session in session_factory():
+        session.add(DimMovie(id_filme="2", titulo="B com imagem", url_backdrop="https://example.com/b.jpg"))
+        await session.commit()
+
+    response = await client.get("/api/v1/movies/featured")
+    assert response.status_code == 200
+    assert response.json()["titulo"] == "B com imagem"
+
+
+async def test_featured_movie_requires_three_reviews_then_ranks_mean_and_count(client) -> None:
+    session_factory = app.dependency_overrides[get_db]
+    async for session in session_factory():
+        session.add_all(
+            [
+                DimMovie(
+                    id_filme="1", titulo="Duas avaliações", url_backdrop="https://example.com/a.jpg",
+                    reviews_summary=DimReview(qtd_avaliacoes_usuarios=2, nota_media_usuarios=10),
+                    reviews=[
+                        MovieReview(nome="Ana", nota=10, comentario="Ótimo") for _ in range(2)
+                    ],
+                ),
+                DimMovie(
+                    id_filme="2", titulo="Três avaliações",
+                    url_poster="https://example.com/b.jpg",
+                    reviews_summary=DimReview(qtd_avaliacoes_usuarios=3, nota_media_usuarios=9),
+                    reviews=[MovieReview(nome="Bia", nota=9, comentario="Bom") for _ in range(3)],
+                ),
+                DimMovie(
+                    id_filme="3", titulo="Quatro avaliações",
+                    url_backdrop="https://example.com/c.jpg",
+                    reviews_summary=DimReview(qtd_avaliacoes_usuarios=4, nota_media_usuarios=9),
+                    reviews=[MovieReview(nome="Cris", nota=9, comentario="Bom") for _ in range(4)],
+                ),
+                DimMovie(
+                    id_filme="4", titulo="Cinco sem imagem",
+                    reviews_summary=DimReview(qtd_avaliacoes_usuarios=5, nota_media_usuarios=10),
+                    reviews=[
+                        MovieReview(nome="Eva", nota=10, comentario="Ótimo") for _ in range(5)
+                    ],
+                ),
+            ]
+        )
+        await session.commit()
+
+    featured = await client.get("/api/v1/movies/featured")
+    assert featured.status_code == 200
+    assert featured.json()["titulo"] == "Quatro avaliações"
+
+    three = (await client.get("/api/v1/movies?q=Três%20avaliações")).json()["items"][0]
+    created = await client.post(
+        f"/api/v1/movies/{three['sk_movie_id']}/reviews",
+        json={"nome": "Dani", "nota": 10, "comentario": "Excelente"},
+    )
+    assert created.status_code == 201
+    updated = await client.get("/api/v1/movies/featured")
+    assert updated.status_code == 200
+    assert updated.json()["titulo"] == "Três avaliações"
+    assert updated.json()["quantidade_avaliacoes"] == 4
+
+
 async def test_movie_detail_contains_related_data_and_review_average(client) -> None:
     session_factory = app.dependency_overrides[get_db]
     async for session in session_factory():
