@@ -1,22 +1,57 @@
-import { useState } from 'react'
-import { ApiError } from '../api/client'
-import { deleteMovie } from '../api/movies'
-import type { MovieListItem } from '../api/types'
-import { ErrorText, Modal } from '../components/ui'
-import { movieTitle } from '../movieTitle'
+import { useState } from "react";
+import { ApiError } from "../api/client";
+import { deleteMovie } from "../api/movies";
+import type { MovieListItem } from "../api/types";
+import { ErrorText, Modal } from "../components/ui";
+import { movieTitle } from "../movieTitle";
 
-export function DeleteMovieModal({ movie, token, onClose, onDeleted, onUnauthorized }: { movie: MovieListItem; token: string; onClose: () => void; onDeleted: () => void; onUnauthorized: () => void }) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+export function DeleteMovieModal({
+  movie,
+  token,
+  onClose,
+  onDeleted,
+  onUnauthorized,
+}: {
+  movie: MovieListItem;
+  token: string;
+  onClose: () => void;
+  onDeleted: () => void;
+  onUnauthorized: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   async function confirm() {
-    setBusy(true); setError(null)
-    try { await deleteMovie(movie.sk_movie_id, token); onDeleted() }
-    catch (cause) { if (cause instanceof ApiError && cause.status === 401) onUnauthorized(); else setError(cause instanceof Error ? cause.message : 'Não foi possível excluir o filme.') }
-    finally { setBusy(false) }
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteMovie(movie.sk_movie_id, token);
+      onDeleted();
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 401) onUnauthorized();
+      else
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Não foi possível excluir o filme.",
+        );
+    } finally {
+      setBusy(false);
+    }
   }
-  return <Modal title="Excluir filme?" onClose={onClose}>
-    <p className="mb-5 text-sm text-muted">Excluir “{movieTitle(movie.titulo)}”? Esta ação não poderá ser desfeita.</p>
-    <ErrorText message={error} />
-    <div className="mt-5 flex justify-end gap-2"><button className="btn btn-outline" onClick={onClose}>Cancelar</button><button className="btn btn-danger" onClick={confirm} disabled={busy}>{busy ? 'Excluindo...' : 'Excluir'}</button></div>
-  </Modal>
+  return (
+    <Modal title="Excluir filme?" onClose={onClose}>
+      <p className="mb-5 text-sm text-muted">
+        Excluir “{movieTitle(movie.titulo)}”? Esta ação não poderá ser desfeita.
+      </p>
+      <ErrorText message={error} />
+      <div className="mt-5 flex justify-end gap-2">
+        <button className="btn btn-outline" onClick={onClose}>
+          Cancelar
+        </button>
+        <button className="btn btn-danger" onClick={confirm} disabled={busy}>
+          {busy ? "Excluindo..." : "Excluir"}
+        </button>
+      </div>
+    </Modal>
+  );
 }
