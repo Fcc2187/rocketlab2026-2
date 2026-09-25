@@ -34,7 +34,7 @@ A partir da raiz do repositório:
 
 ```powershell
 cd backend
-py -3.11 -m venv .venv
+python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 Copy-Item .env.example .env
 # Preencha ADMIN_USERNAME, ADMIN_PASSWORD_HASH e AUTH_SECRET_KEY no .env
@@ -42,8 +42,6 @@ Copy-Item .env.example .env
 .\.venv\Scripts\python.exe -m app.movies.import_csv ..\dados
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
 ```
-
-Se `py -3.11` não estiver disponível, substitua pelo caminho da sua instalação de Python 3.11+.
 
 ## Executar no macOS/Linux
 
