@@ -33,13 +33,20 @@ export function Poster({
   src,
   title,
   className = "",
+  variantKey = "",
 }: {
   src: string | null;
   title: string;
   className?: string;
+  variantKey?: string;
 }) {
   const [failed, setFailed] = useState(false);
   const visibleTitle = movieTitle(title);
+  const variant =
+    Array.from(variantKey).reduce(
+      (hash, char) => (hash * 31 + char.charCodeAt(0)) % 3,
+      0,
+    ) + 1;
   return (
     <div className={`poster relative overflow-hidden rounded-lg ${className}`}>
       {src && !failed ? (
@@ -51,7 +58,10 @@ export function Poster({
           className="h-full w-full object-cover"
         />
       ) : (
-        <div className="poster-fallback absolute inset-0 flex flex-col justify-between p-4">
+        <div
+          className="poster-fallback absolute inset-0 flex flex-col justify-between p-4"
+          data-variant={variant}
+        >
           <span className="text-xs font-semibold uppercase tracking-widest text-accent">
             CineRate
           </span>
@@ -63,6 +73,25 @@ export function Poster({
           </span>
         </div>
       )}
+    </div>
+  );
+}
+
+export function HeroSkeleton() {
+  return (
+    <div className="hero-inner hero-skeleton animate-pulse" aria-hidden="true">
+      <div className="hero-content">
+        <div className="hero-skeleton-label" />
+        <div className="hero-skeleton-title" />
+        <div className="hero-skeleton-meta" />
+        <div className="hero-skeleton-rating" />
+        <div className="hero-skeleton-synopsis" />
+        <div className="hero-skeleton-actions">
+          <div />
+          <div />
+        </div>
+      </div>
+      <div className="hero-media hero-skeleton-backdrop" />
     </div>
   );
 }

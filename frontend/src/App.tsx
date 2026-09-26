@@ -7,7 +7,12 @@ import type {
   MoviePage,
 } from "./api/types";
 import { MovieCard } from "./components/MovieCard";
-import { Pagination, Rating, SkeletonGrid } from "./components/ui";
+import {
+  HeroSkeleton,
+  Pagination,
+  Rating,
+  SkeletonGrid,
+} from "./components/ui";
 import { movieTitle } from "./movieTitle";
 import { DeleteMovieModal } from "./features/DeleteMovieModal";
 import { LoginModal } from "./features/LoginModal";
@@ -34,6 +39,9 @@ export default function App() {
   );
   const [filterError, setFilterError] = useState(false);
   const [hero, setHero] = useState<MovieDetail | null>(null);
+  const [heroStatus, setHeroStatus] = useState<"loading" | "ready" | "error">(
+    "loading",
+  );
   const [detailId, setDetailId] = useState<string | null>(null);
   const [reviewTarget, setReviewTarget] = useState<MovieListItem | null>(null);
   const [formId, setFormId] = useState<string | "new" | null>(null);
@@ -108,15 +116,19 @@ export default function App() {
     const controller = new AbortController();
     getFeaturedMovie(controller.signal)
       .then((movie) => {
-        if (!controller.signal.aborted) setHero(movie);
+        if (!controller.signal.aborted) {
+          setHero(movie);
+          setHeroStatus("ready");
+        }
       })
       .catch(() => {
-        if (!controller.signal.aborted) setHero(null);
+        if (!controller.signal.aborted) setHeroStatus("error");
       });
     return () => controller.abort();
   }, [revision]);
 
   function refresh() {
+    setHeroStatus("loading");
     setRevision((value) => value + 1);
   }
   function resetFilters() {
@@ -266,68 +278,97 @@ export default function App() {
 
       <section
         id="inicio"
-        className={`hero ${hero?.url_backdrop || hero?.url_poster ? "" : "hero--plain"}`}
-        aria-labelledby="featured-title"
+        className={`hero ${heroStatus !== "loading" && !hero?.url_backdrop && !hero?.url_poster ? "hero--plain" : ""}`}
+        aria-busy={heroStatus === "loading"}
+        aria-label={
+          !hero && heroStatus === "loading"
+            ? "Carregando filme em destaque"
+            : undefined
+        }
+        aria-labelledby={
+          hero || heroStatus !== "loading" ? "featured-title" : undefined
+        }
       >
-        <div className="hero-inner">
-          {(hero?.url_backdrop || hero?.url_poster) && (
-            <div className="hero-media">
-              <img
-                src={hero.url_backdrop || hero.url_poster || ""}
-                alt=""
-                fetchPriority="high"
-                onError={(event) => {
-                  event.currentTarget.hidden = true;
-                }}
-                onLoad={(event) => {
-                  event.currentTarget.hidden = false;
-                }}
-              />
-            </div>
-          )}
-          <div className="hero-content">
-            <p className="hero-label">Filme em destaque</p>
-            <h1 id="featured-title" className="hero-title">
-              {hero ? movieTitle(hero.titulo) : "CineRate"}
-            </h1>
-            {hero && (
-              <>
-                <p className="hero-meta">
-                  {[hero.ano_lancamento, ...hero.generos.slice(0, 2)]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-                <p className="hero-rating">
-                  <Rating
-                    score={hero.media_avaliacoes}
-                    count={hero.quantidade_avaliacoes}
-                    showCount
-                  />
-                </p>
-              </>
-            )}
-            <p className="hero-synopsis">
-              {hero?.sinopse ||
-                "Seu catálogo de filmes, avaliações e resenhas em um só lugar."}
-            </p>
-            {hero && (
-              <div className="hero-actions">
-                <button
-                  className="btn btn-primary"
-                  onClick={() => setDetailId(hero.sk_movie_id)}
-                >
-                  Ver detalhes
-                </button>
-                <button
-                  className="btn btn-outline"
-                  onClick={() => openReview(hero)}
-                >
-                  Avaliar
-                </button>
+        {heroStatus === "loading" && !hero ? (
+          <HeroSkeleton />
+        ) : (
+          <div className="hero-inner">
+            {(hero?.url_backdrop || hero?.url_poster) && (
+              <div className="hero-media">
+                <img
+                  src={hero.url_backdrop || hero.url_poster || ""}
+                  alt=""
+                  fetchPriority="high"
+                  onError={(event) => {
+                    event.currentTarget.hidden = true;
+                  }}
+                  onLoad={(event) => {
+                    event.currentTarget.hidden = false;
+                  }}
+                />
               </div>
             )}
+            <div className="hero-content">
+              <p className="hero-label">
+                {hero
+                  ? "Filme em destaque"
+                  : heroStatus === "error"
+                    ? "Indisponível agora"
+                    : "Sem destaque no momento"}
+              </p>
+              <h1 id="featured-title" className="hero-title">
+                {hero
+                  ? movieTitle(hero.titulo)
+                  : heroStatus === "error"
+                    ? "Destaque indisponível"
+                    : "Nenhum filme em destaque"}
+              </h1>
+              {hero && (
+                <>
+                  <p className="hero-meta">
+                    {[hero.ano_lancamento, ...hero.generos.slice(0, 2)]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                  <p className="hero-rating">
+                    <Rating
+                      score={hero.media_avaliacoes}
+                      count={hero.quantidade_avaliacoes}
+                      showCount
+                    />
+                  </p>
+                </>
+              )}
+              <p className="hero-synopsis">
+                {hero?.sinopse ||
+                  (heroStatus === "error"
+                    ? "Não foi possível carregar o destaque. Você ainda pode explorar o catálogo."
+                    : "Explore o catálogo enquanto um novo destaque não está disponível.")}
+              </p>
+              {hero && (
+                <div className="hero-actions">
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => setDetailId(hero.sk_movie_id)}
+                  >
+                    Ver detalhes
+                  </button>
+                  <button
+                    className="btn btn-outline"
+                    onClick={() => openReview(hero)}
+                  >
+                    Avaliar
+                  </button>
+                </div>
+              )}
+              {hero && heroStatus === "error" && (
+                <p className="hero-update-status" role="status">
+                  Não foi possível atualizar o destaque.
+                </p>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </section>
 
       <main id="catalogo" className="shell catalog" tabIndex={-1}>
@@ -499,8 +540,8 @@ export default function App() {
       <footer className="site-footer">
         <div className="shell footer-inner">
           <span>
-            <strong className="text-ink">CineRate</strong> · Seu cinema,
-            organizado.
+            <strong className="text-ink">CineRate</strong>
+            {" · Histórias que ficam depois dos créditos."}
           </span>
           <span>Catálogo e avaliações de filmes</span>
         </div>

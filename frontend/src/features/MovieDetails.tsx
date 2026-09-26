@@ -87,6 +87,7 @@ export function MovieDetails({
               src={movie.url_poster}
               title={movie.titulo}
               className="detail-poster"
+              variantKey={movie.sk_movie_id}
             />
             <div className="detail-summary">
               <p className="detail-meta">

@@ -72,7 +72,11 @@ export function MovieCard({
         className="movie-poster-action"
         aria-label={`Ver detalhes de ${title}`}
       >
-        <Poster src={movie.url_poster} title={title} />
+        <Poster
+          src={movie.url_poster}
+          title={title}
+          variantKey={movie.sk_movie_id}
+        />
       </button>
       <div className="movie-card-copy">
         <h3 className="movie-card-title">
