@@ -147,66 +147,20 @@ export default function App() {
 
   return (
     <>
-      <header className="relative z-20 border-b border-white/10 bg-bg/95">
-        <div className="shell flex h-[72px] items-center justify-between gap-5">
-          <div className="flex items-center gap-8">
-            <a
-              href="#inicio"
-              className="flex items-center gap-2 text-2xl font-extrabold tracking-tight"
-            >
-              <span
-                className="brand-mark grid size-8 place-items-center rounded-lg bg-accent text-bg"
-                aria-hidden="true"
-              >
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M4 5h16v14H4zM4 10h16M8 5l3 5m3-5 3 5M9 14l6-2v4l-6-2Z"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </span>
-              CineRate
-            </a>
-            <a
-              className="nav-active hidden text-sm font-semibold text-ink sm:flex"
-              href="#catalogo"
-            >
+      <a className="skip-link" href="#catalogo">
+        Ir para o catálogo
+      </a>
+      <header className="site-header">
+        <div className="shell site-header-inner">
+          <a href="#inicio" className="brand">
+            CineRate
+          </a>
+          <nav className="desktop-nav" aria-label="Navegação principal">
+            <a className="catalog-link" href="#catalogo">
               Catálogo
             </a>
-          </div>
-          <div className="hidden min-w-0 flex-1 justify-end md:flex">
-            <label className="filter-search flex h-10 w-[222px] items-center gap-2">
-              <span className="sr-only">Buscar filme por título</span>
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
-              >
-                <circle
-                  cx="10.8"
-                  cy="10.8"
-                  r="6.8"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                />
-                <path d="m16 16 5 5" stroke="currentColor" strokeWidth="1.7" />
-              </svg>
-              <input
-                type="search"
-                value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value);
-                  setPage(1);
-                }}
-                placeholder="Buscar por título..."
-              />
-            </label>
-          </div>
-          <div className="hidden items-center gap-2 sm:flex">
+          </nav>
+          <div className="header-actions">
             {admin ? (
               <>
                 <button
@@ -234,20 +188,37 @@ export default function App() {
               </button>
             )}
           </div>
-          <div className="sm:hidden">
-            <button
-              className="btn btn-outline"
-              aria-label="Abrir menu"
-              aria-expanded={mobileOpen}
-              onClick={() => setMobileOpen(!mobileOpen)}
+          <button
+            className="btn btn-outline mobile-menu-toggle"
+            aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-navigation"
+            onClick={() => setMobileOpen(!mobileOpen)}
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
             >
-              ☰
-            </button>
-          </div>
+              <path
+                d={
+                  mobileOpen
+                    ? "m6 6 12 12M6 18 18 6"
+                    : "M4 7h16M4 12h16M4 17h16"
+                }
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
         </div>
         {mobileOpen && (
           <nav
-            className="shell grid gap-2 border-t border-line py-3 sm:hidden"
+            id="mobile-navigation"
+            className="shell mobile-navigation"
             aria-label="Menu principal"
           >
             <a
@@ -295,32 +266,38 @@ export default function App() {
 
       <section
         id="inicio"
-        className="relative isolate min-h-[300px] overflow-hidden bg-[#18222a] sm:min-h-[452px]"
+        className={`hero ${hero?.url_backdrop || hero?.url_poster ? "" : "hero--plain"}`}
+        aria-labelledby="featured-title"
       >
-        {(hero?.url_backdrop || hero?.url_poster) && (
-          <img
-            src={hero.url_backdrop || hero.url_poster || ""}
-            alt=""
-            className="absolute right-0 top-0 -z-20 h-full w-full object-cover object-center opacity-75 sm:w-[63%] sm:opacity-100"
-          />
-        )}
-        <div className="hero-shade absolute inset-0 -z-10" />
-        <div className="shell flex min-h-[300px] items-end py-9 sm:min-h-[452px] sm:items-center sm:py-12">
-          <div className="max-w-xl">
-            <p className="mb-3 text-xs font-bold uppercase tracking-[.16em] text-accent">
-              Filme em destaque
-            </p>
-            <h1 className="text-4xl font-extrabold leading-tight tracking-tight sm:text-6xl">
+        <div className="hero-inner">
+          {(hero?.url_backdrop || hero?.url_poster) && (
+            <div className="hero-media">
+              <img
+                src={hero.url_backdrop || hero.url_poster || ""}
+                alt=""
+                fetchPriority="high"
+                onError={(event) => {
+                  event.currentTarget.hidden = true;
+                }}
+                onLoad={(event) => {
+                  event.currentTarget.hidden = false;
+                }}
+              />
+            </div>
+          )}
+          <div className="hero-content">
+            <p className="hero-label">Filme em destaque</p>
+            <h1 id="featured-title" className="hero-title">
               {hero ? movieTitle(hero.titulo) : "CineRate"}
             </h1>
             {hero && (
               <>
-                <p className="mt-3 text-sm text-[#d2dedb]">
+                <p className="hero-meta">
                   {[hero.ano_lancamento, ...hero.generos.slice(0, 2)]
                     .filter(Boolean)
                     .join(" · ")}
                 </p>
-                <p className="mt-4">
+                <p className="hero-rating">
                   <Rating
                     score={hero.media_avaliacoes}
                     count={hero.quantidade_avaliacoes}
@@ -329,12 +306,12 @@ export default function App() {
                 </p>
               </>
             )}
-            <p className="mt-4 line-clamp-2 text-sm leading-6 text-[#d5dfdd] sm:line-clamp-3 sm:text-base">
+            <p className="hero-synopsis">
               {hero?.sinopse ||
                 "Seu catálogo de filmes, avaliações e resenhas em um só lugar."}
             </p>
             {hero && (
-              <div className="mt-6 flex flex-wrap gap-2">
+              <div className="hero-actions">
                 <button
                   className="btn btn-primary"
                   onClick={() => setDetailId(hero.sk_movie_id)}
@@ -353,28 +330,10 @@ export default function App() {
         </div>
       </section>
 
-      <main id="catalogo" className="shell scroll-mt-6 pb-24 pt-9 sm:pt-12">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="mb-2 text-xs font-bold uppercase tracking-[.15em] text-accent">
-              Sua coleção, em um só lugar
-            </p>
-            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              Explorar catálogo
-            </h2>
-            <p className="mt-2 text-sm text-muted">
-              Busque, avalie e descubra os filmes cadastrados.
-            </p>
-          </div>
-          {catalog && (
-            <p className="text-sm text-muted">
-              {catalog.total.toLocaleString("pt-BR")}{" "}
-              {catalog.total === 1 ? "filme cadastrado" : "filmes cadastrados"}
-            </p>
-          )}
-        </div>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <label className="filter-search flex w-full min-w-[220px] items-center gap-3 md:w-[min(430px,42%)]">
+      <main id="catalogo" className="shell catalog" tabIndex={-1}>
+        <h2 className="catalog-title">Explore o catálogo</h2>
+        <div className="catalog-filters">
+          <label className="filter-search">
             <svg
               width="17"
               height="17"
@@ -402,7 +361,7 @@ export default function App() {
               aria-label="Buscar por título"
             />
           </label>
-          <label className="filter-select min-w-[145px] flex-1 sm:flex-none">
+          <label className="filter-select">
             <span className="sr-only">Filtrar por gênero</span>
             <select
               value={genre}
@@ -420,7 +379,7 @@ export default function App() {
               ))}
             </select>
           </label>
-          <label className="filter-select min-w-[130px] flex-1 sm:flex-none">
+          <label className="filter-select">
             <span className="sr-only">Filtrar por ano</span>
             <select
               value={year}
@@ -440,27 +399,27 @@ export default function App() {
           </label>
         </div>
         {filterError && (
-          <p className="mt-2 text-sm text-danger">
+          <p className="filter-error" role="alert">
             Não foi possível carregar os filtros.{" "}
-            <button className="underline" onClick={refresh}>
+            <button className="text-link underline" onClick={refresh}>
               Tentar novamente
             </button>
           </p>
         )}
-        <div className="mb-5 mt-12 flex items-end justify-between gap-3 border-b border-line pb-4">
+        <div className="catalog-results" aria-live="polite" aria-atomic="true">
           <div>
-            <h2 className="text-xl font-bold">Todos os filmes</h2>
-            <p className="mt-1 text-sm text-muted">
-              {catalogError
-                ? "Falha ao carregar o catálogo"
-                : catalogLoading
-                  ? "Carregando catálogo"
-                  : query || genre || year
-                    ? "Resultados da busca e dos filtros"
-                    : "Explore todos os títulos da coleção"}
-            </p>
+            <h2 className="results-title">Todos os filmes</h2>
+            {(catalogError || catalogLoading || query || genre || year) && (
+              <p className="mt-1 text-sm text-muted">
+                {catalogError
+                  ? "Falha ao carregar o catálogo"
+                  : catalogLoading
+                    ? "Carregando catálogo"
+                    : "Resultados da busca e dos filtros"}
+              </p>
+            )}
           </div>
-          <div className="flex items-center gap-4">
+          <div className="results-actions">
             {catalog && (
               <span className="text-sm text-muted">
                 {catalog.total.toLocaleString("pt-BR")}{" "}
@@ -468,10 +427,7 @@ export default function App() {
               </span>
             )}
             {query || genre || year ? (
-              <button
-                className="text-sm font-semibold text-accent hover:underline"
-                onClick={resetFilters}
-              >
+              <button className="text-link" onClick={resetFilters}>
                 Limpar filtros
               </button>
             ) : null}
@@ -480,21 +436,16 @@ export default function App() {
         {catalogLoading ? (
           <SkeletonGrid />
         ) : catalogError ? (
-          <div
-            role="alert"
-            className="rounded-xl border border-line p-10 text-center"
-          >
-            <h3 className="text-lg font-bold">
-              Não foi possível carregar o catálogo
-            </h3>
+          <div role="alert" className="catalog-state">
+            <h3>Não foi possível carregar o catálogo</h3>
             <p className="mt-2 text-sm text-muted">{catalogError}</p>
             <button className="btn btn-outline mt-5" onClick={refresh}>
               Tentar novamente
             </button>
           </div>
         ) : catalog?.total === 0 ? (
-          <div className="rounded-xl border border-dashed border-line p-10 text-center">
-            <h3 className="text-lg font-bold">
+          <div className="catalog-state">
+            <h3>
               {query || genre || year
                 ? "Nenhum filme encontrado"
                 : "Nenhum filme cadastrado"}
@@ -521,7 +472,7 @@ export default function App() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-9 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="movie-grid">
               {catalog?.items.map((movie) => (
                 <MovieCard
                   key={movie.sk_movie_id}
@@ -545,8 +496,8 @@ export default function App() {
           </>
         )}
       </main>
-      <footer className="border-t border-line py-7 text-sm text-muted">
-        <div className="shell flex flex-wrap justify-between gap-2">
+      <footer className="site-footer">
+        <div className="shell footer-inner">
           <span>
             <strong className="text-ink">CineRate</strong> · Seu cinema,
             organizado.
@@ -555,10 +506,7 @@ export default function App() {
         </div>
       </footer>
       {toast && (
-        <div
-          role="status"
-          className="fixed bottom-5 right-5 z-50 max-w-sm rounded-lg border border-[#427960] bg-[#17392c] px-4 py-3 text-sm text-[#e4f8eb] shadow-xl"
-        >
+        <div role="status" className="toast">
           {toast}
         </div>
       )}

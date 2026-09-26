@@ -321,7 +321,7 @@ test("menu administrativo fecha antes de executar uma ação", async () => {
   );
   const menu = screen.getByLabelText("Opções para Filme do menu")
     .parentElement as HTMLDetailsElement;
-  fireEvent.click(within(menu).getByText("⋯"));
+  fireEvent.click(screen.getByLabelText("Opções para Filme do menu"));
   expect(menu.open).toBe(true);
   fireEvent.click(within(menu).getByRole("button", { name: "Ver detalhes" }));
   expect(menu.open).toBe(false);
@@ -349,7 +349,7 @@ test("destaque global continua igual quando a busca muda", async () => {
   ]);
   render(<App />);
   expect(
-    await screen.findByRole("heading", { name: "Melhor avaliado" }),
+    await screen.findByRole("heading", { name: "Melhor avaliado", level: 1 }),
   ).toBeTruthy();
   expect(document.querySelector("#inicio img")?.getAttribute("src")).toBe(
     "https://example.com/poster.jpg",
@@ -358,7 +358,9 @@ test("destaque global continua igual quando a busca muda", async () => {
     target: { value: "Filme buscado" },
   });
   await screen.findByRole("button", { name: "Ver detalhes de Filme buscado" });
-  expect(screen.getByRole("heading", { name: "Melhor avaliado" })).toBeTruthy();
+  expect(
+    screen.getByRole("heading", { name: "Melhor avaliado", level: 1 }),
+  ).toBeTruthy();
   expect(
     api.calls.filter((call) => call.url.endsWith("/movies/featured")).length,
   ).toBe(1);

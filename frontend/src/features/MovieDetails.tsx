@@ -8,11 +8,9 @@ import { movieTitle } from "../movieTitle";
 function Facts({ label, values }: { label: string; values: string[] }) {
   return (
     values.length > 0 && (
-      <div>
-        <dt className="text-xs font-bold uppercase tracking-wider text-muted">
-          {label}
-        </dt>
-        <dd className="mt-1 text-sm">{values.join(", ")}</dd>
+      <div className="detail-fact">
+        <dt>{label}</dt>
+        <dd>{values.join(", ")}</dd>
       </div>
     )
   );
@@ -63,19 +61,35 @@ export function MovieDetails({
       title={movie ? movieTitle(movie.titulo) : "Detalhes do filme"}
       onClose={onClose}
       wide
+      className="movie-details-modal"
     >
       <ErrorText message={error} />
-      {!movie && !error && <p className="text-muted">Carregando detalhes...</p>}
+      {!movie && !error && (
+        <p className="detail-status" role="status">
+          Carregando detalhes...
+        </p>
+      )}
       {movie && (
         <>
-          <div className="grid gap-6 sm:grid-cols-[180px_1fr]">
+          {movie.url_backdrop && (
+            <div className="detail-backdrop">
+              <img
+                src={movie.url_backdrop}
+                alt=""
+                onError={(event) => {
+                  event.currentTarget.hidden = true;
+                }}
+              />
+            </div>
+          )}
+          <div className="detail-overview">
             <Poster
               src={movie.url_poster}
               title={movie.titulo}
-              className="mx-auto w-40 sm:w-full"
+              className="detail-poster"
             />
-            <div>
-              <p className="text-sm text-muted">
+            <div className="detail-summary">
+              <p className="detail-meta">
                 {[
                   movie.data_lancamento
                     ? new Date(
@@ -87,17 +101,14 @@ export function MovieDetails({
                   .filter(Boolean)
                   .join(" · ")}
               </p>
-              <p className="mt-3">
+              <p className="detail-rating">
                 <Rating
                   score={movie.media_avaliacoes}
                   count={movie.quantidade_avaliacoes}
                   showCount
                 />
               </p>
-              <p className="mt-4 text-sm leading-7 text-[#c6d2d0]">
-                {movie.sinopse || "Sem sinopse cadastrada."}
-              </p>
-              <div className="mt-5 flex flex-wrap gap-2">
+              <div className="detail-actions">
                 <button
                   className="btn btn-primary"
                   onClick={() => onReview(movie)}
@@ -121,59 +132,71 @@ export function MovieDetails({
                   </>
                 )}
               </div>
-              <dl className="mt-6 grid gap-4 border-t border-line pt-5 sm:grid-cols-2">
-                <Facts label="Diretores" values={movie.diretores} />
-                <Facts label="Atores" values={movie.atores} />
-                <Facts label="Roteiristas" values={movie.roteiristas} />
-                <Facts label="Produtoras" values={movie.produtoras} />
-                {movie.duracao_minutos && (
-                  <Facts
-                    label="Duração"
-                    values={[`${movie.duracao_minutos} min`]}
-                  />
-                )}
-                {movie.status_filme && (
-                  <Facts label="Status" values={[movie.status_filme]} />
-                )}
-              </dl>
-              {movie.desempenho && (
-                <p className="mt-5 flex flex-wrap gap-3 text-sm text-muted">
-                  {movie.desempenho.nota_imdb !== null && (
-                    <span>
-                      IMDb{" "}
-                      <strong className="text-gold">
-                        {movie.desempenho.nota_imdb}
-                      </strong>
-                    </span>
-                  )}
-                  {movie.desempenho.nota_tmdb !== null && (
-                    <span>
-                      TMDB{" "}
-                      <strong className="text-gold">
-                        {movie.desempenho.nota_tmdb}
-                      </strong>
-                    </span>
-                  )}
-                  {movie.desempenho.popularidade !== null && (
-                    <span>
-                      Popularidade{" "}
-                      <strong className="text-gold">
-                        {movie.desempenho.popularidade}
-                      </strong>
-                    </span>
-                  )}
-                </p>
-              )}
             </div>
+            <section className="detail-synopsis" aria-label="Sinopse">
+              <h3 className="detail-section-title">Sinopse</h3>
+              <p>{movie.sinopse || "Sem sinopse cadastrada."}</p>
+            </section>
           </div>
-          <section className="mt-8 border-t border-line pt-6">
-            <h3 className="text-lg font-bold">Avaliações e resenhas</h3>
+          <section className="detail-section" aria-label="Ficha técnica">
+            <h3 className="detail-section-title">Ficha técnica</h3>
+            <dl className="detail-facts">
+              <Facts label="Diretores" values={movie.diretores} />
+              <Facts label="Atores" values={movie.atores} />
+              <Facts label="Roteiristas" values={movie.roteiristas} />
+              <Facts label="Produtoras" values={movie.produtoras} />
+              {movie.duracao_minutos && (
+                <Facts
+                  label="Duração"
+                  values={[`${movie.duracao_minutos} min`]}
+                />
+              )}
+              {movie.status_filme && (
+                <Facts label="Status" values={[movie.status_filme]} />
+              )}
+            </dl>
+            {movie.desempenho && (
+              <p className="detail-external-ratings">
+                {movie.desempenho.nota_imdb !== null && (
+                  <span>
+                    IMDb{" "}
+                    <strong className="text-gold">
+                      {movie.desempenho.nota_imdb}
+                    </strong>
+                  </span>
+                )}
+                {movie.desempenho.nota_tmdb !== null && (
+                  <span>
+                    TMDB{" "}
+                    <strong className="text-gold">
+                      {movie.desempenho.nota_tmdb}
+                    </strong>
+                  </span>
+                )}
+                {movie.desempenho.popularidade !== null && (
+                  <span>
+                    Popularidade{" "}
+                    <strong className="text-gold">
+                      {movie.desempenho.popularidade}
+                    </strong>
+                  </span>
+                )}
+              </p>
+            )}
+          </section>
+          <section
+            className="detail-section"
+            aria-label="Avaliações e resenhas"
+          >
+            <h3 className="detail-section-title">Avaliações e resenhas</h3>
             <ErrorText message={reviewError} />
             {!reviews && !reviewError && (
-              <p className="mt-4 text-muted">Carregando avaliações...</p>
+              <p className="detail-status" role="status">
+                Carregando avaliações...
+              </p>
             )}
             {reviews?.total === 0 && (
-              <p className="mt-4 text-sm text-muted">
+              <p className="detail-status">
                 {movie.quantidade_avaliacoes > 0
                   ? "Nenhuma resenha individual disponível."
                   : "Nenhuma avaliação ainda. Seja o primeiro a avaliar este filme."}
@@ -182,17 +205,15 @@ export function MovieDetails({
             {reviews?.items.map((review) => (
               <article
                 key={review.sk_movie_review_id}
-                className="border-b border-line py-4"
+                className="detail-review"
               >
-                <div className="flex items-center justify-between gap-3">
+                <div className="detail-review-header">
                   <strong>{review.nome}</strong>
                   <Rating score={review.nota} count={1} />
                 </div>
-                <p className="mt-2 text-sm text-[#c6d2d0]">
-                  {review.comentario}
-                </p>
+                <p className="detail-review-comment">{review.comentario}</p>
                 <time
-                  className="mt-2 block text-xs text-muted"
+                  className="detail-review-date"
                   dateTime={review.created_at}
                 >
                   {new Date(review.created_at).toLocaleDateString("pt-BR")}

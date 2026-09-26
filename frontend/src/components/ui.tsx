@@ -48,17 +48,17 @@ export function Poster({
           alt={`Pôster de ${visibleTitle}`}
           loading="lazy"
           onError={() => setFailed(true)}
-          className="h-full w-full object-cover transition-transform duration-300"
+          className="h-full w-full object-cover"
         />
       ) : (
         <div className="poster-fallback absolute inset-0 flex flex-col justify-between p-4">
-          <span className="text-xs font-bold uppercase tracking-widest text-[#d1e4db]">
+          <span className="text-xs font-semibold uppercase tracking-widest text-accent">
             CineRate
           </span>
           <span className="relative z-10 font-serif text-[clamp(1.25rem,2vw,2rem)] font-bold leading-tight break-words">
             {visibleTitle}
           </span>
-          <span className="relative z-10 text-xs uppercase tracking-wider text-[#b8c9c7]">
+          <span className="relative z-10 text-xs uppercase tracking-wider text-muted">
             Imagem indisponível
           </span>
         </div>
@@ -72,11 +72,13 @@ export function Modal({
   onClose,
   children,
   wide = false,
+  className = "",
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
   wide?: boolean;
+  className?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -91,18 +93,31 @@ export function Modal({
         if (event.target === ref.current) ref.current.close();
       }}
       aria-label={title}
-      className={`dialog ${wide ? "dialog-wide" : ""}`}
+      className={`dialog ${wide ? "dialog-wide" : ""} ${className}`}
     >
-      <div className="p-5 sm:p-7">
-        <div className="mb-5 flex items-start justify-between gap-5">
-          <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
+      <div className="dialog-content">
+        <div className="dialog-header">
+          <h2 className="dialog-title">{title}</h2>
           <button
             type="button"
-            className="btn btn-outline !min-h-9 !px-3"
+            className="btn btn-outline dialog-close"
             aria-label="Fechar"
             onClick={() => ref.current?.close()}
           >
-            ×
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="m6 6 12 12M6 18 18 6"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
           </button>
         </div>
         {children}
@@ -129,22 +144,33 @@ export function Pagination({
     (_, index) => start + index,
   );
   return (
-    <nav
-      aria-label={label}
-      className="mt-7 flex flex-wrap items-center justify-center gap-2"
-    >
+    <nav aria-label={label} className="pagination">
       <button
-        className="btn btn-outline !px-3"
+        className="btn btn-outline pagination-button"
         disabled={page === 1}
         onClick={() => onPage(page - 1)}
         aria-label="Página anterior"
       >
-        ←
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M19 12H5m6-6-6 6 6 6"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </button>
       {pages.map((value) => (
         <button
           key={value}
-          className={`btn !px-3 ${value === page ? "btn-primary" : "btn-outline"}`}
+          className={`btn pagination-button ${value === page ? "btn-primary" : "btn-outline"}`}
           aria-current={value === page ? "page" : undefined}
           onClick={() => onPage(value)}
         >
@@ -152,23 +178,49 @@ export function Pagination({
         </button>
       ))}
       <button
-        className="btn btn-outline !px-3"
+        className="btn btn-outline pagination-button"
         disabled={page === totalPages}
         onClick={() => onPage(page + 1)}
         aria-label="Próxima página"
       >
-        →
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M5 12h14m-6-6 6 6-6 6"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </button>
     </nav>
   );
 }
 
-export function ErrorText({ message }: { message: string | null }) {
+export function ErrorText({
+  message,
+  autoFocus = false,
+}: {
+  message: string | null;
+  autoFocus?: boolean;
+}) {
+  const ref = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (autoFocus && message) ref.current?.focus();
+  }, [autoFocus, message]);
   return (
     message && (
       <p
+        ref={ref}
+        tabIndex={autoFocus ? -1 : undefined}
         role="alert"
-        className="rounded-lg border border-danger/50 bg-danger/10 p-3 text-sm text-[#ffd5d7]"
+        className="form-error"
       >
         {message}
       </p>
@@ -179,14 +231,21 @@ export function ErrorText({ message }: { message: string | null }) {
 export function SkeletonGrid() {
   return (
     <div
-      className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5"
+      className="movie-grid"
       aria-label="Carregando catálogo"
+      aria-busy="true"
     >
       {Array.from({ length: 10 }, (_, index) => (
-        <div key={index} className="animate-pulse">
-          <div className="poster rounded-lg bg-surface2" />
-          <div className="mt-3 h-4 w-4/5 rounded bg-surface2" />
-          <div className="mt-2 h-3 w-2/3 rounded bg-surface2" />
+        <div
+          key={index}
+          className="movie-skeleton animate-pulse"
+          aria-hidden="true"
+        >
+          <div className="skeleton-poster" />
+          <div className="skeleton-title" />
+          <div className="skeleton-meta" />
+          <div className="skeleton-rating" />
+          <div className="skeleton-button" />
         </div>
       ))}
     </div>

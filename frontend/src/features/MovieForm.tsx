@@ -29,29 +29,42 @@ function Chips({
     setInput("");
   }
   return (
-    <div className="field">
-      <span>{label}</span>
-      <div className="rounded-lg border border-line bg-[#10181c] p-2">
-        <div className="flex flex-wrap gap-2">
-          {names.map((name) => (
-            <span
-              key={name}
-              className="inline-flex items-center gap-2 rounded-full bg-[#173b30] px-3 py-1 text-sm text-[#d8f4e3]"
-            >
-              {name}
-              <button
-                type="button"
-                aria-label={`Remover ${name}`}
-                onClick={() =>
-                  setNames(names.filter((value) => value !== name))
-                }
-              >
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
-        <div className="mt-2 flex gap-2">
+    <fieldset className="field chip-field">
+      <legend>{label}</legend>
+      <div className="chip-control">
+        {names.length > 0 && (
+          <div className="chip-list">
+            {names.map((name) => (
+              <span key={name} className="chip">
+                <span>{name}</span>
+                <button
+                  type="button"
+                  className="chip-remove"
+                  aria-label={`Remover ${name}`}
+                  onClick={() =>
+                    setNames(names.filter((value) => value !== name))
+                  }
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="m6 6 12 12M6 18 18 6"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="chip-entry">
           <input
             className="input"
             value={input}
@@ -70,7 +83,7 @@ function Chips({
           </button>
         </div>
       </div>
-    </div>
+    </fieldset>
   );
 }
 
@@ -162,11 +175,17 @@ export function MovieForm({
     }
   }
   return (
-    <Modal title={id ? "Editar filme" : "Adicionar filme"} onClose={onClose}>
+    <Modal
+      title={id ? "Editar filme" : "Adicionar filme"}
+      onClose={onClose}
+      className="admin-modal"
+    >
       {loading ? (
-        <p className="text-muted">Carregando filme...</p>
+        <p className="form-description" role="status">
+          Carregando filme...
+        </p>
       ) : (
-        <form onSubmit={submit} className="grid gap-4">
+        <form onSubmit={submit} className="admin-form" aria-busy={busy}>
           <label className="field">
             Título
             <input
@@ -176,6 +195,9 @@ export function MovieForm({
               maxLength={500}
               required
               autoFocus
+              ref={(input) => {
+                if (input) input.autofocus = true;
+              }}
             />
           </label>
           <label className="field">
@@ -210,8 +232,8 @@ export function MovieForm({
               maxLength={4000}
             />
           </label>
-          <ErrorText message={error} />
-          <div className="flex justify-end gap-2">
+          <ErrorText message={error} autoFocus />
+          <div className="form-actions">
             <button type="button" className="btn btn-outline" onClick={onClose}>
               Cancelar
             </button>

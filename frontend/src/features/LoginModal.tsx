@@ -33,11 +33,13 @@ export function LoginModal({
     }
   }
   return (
-    <Modal title="Entrar como administrador" onClose={onClose}>
-      <p className="mb-5 text-sm text-muted">
-        Entre para gerenciar o catálogo.
-      </p>
-      <form onSubmit={submit} className="grid gap-4">
+    <Modal
+      title="Entrar como administrador"
+      onClose={onClose}
+      className="admin-modal"
+    >
+      <p className="form-description">Entre para gerenciar o catálogo.</p>
+      <form onSubmit={submit} className="admin-form" aria-busy={busy}>
         <label className="field">
           Usuário
           <input
@@ -47,6 +49,9 @@ export function LoginModal({
             required
             maxLength={120}
             autoFocus
+            ref={(input) => {
+              if (input) input.autofocus = true;
+            }}
           />
         </label>
         <label className="field">
@@ -59,8 +64,8 @@ export function LoginModal({
             required
           />
         </label>
-        <ErrorText message={error} />
-        <div className="flex justify-end gap-2">
+        <ErrorText message={error} autoFocus />
+        <div className="form-actions">
           <button type="button" className="btn btn-outline" onClick={onClose}>
             Cancelar
           </button>

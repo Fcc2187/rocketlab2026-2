@@ -1,0 +1,189 @@
+{
+  "preflight": {
+    "title": "Assessment B preflight",
+    "script": true,
+    "executed": true
+  },
+  "surfaces": [
+    {
+      "surface": "home",
+      "logs": [
+        {
+          "type": "startGroup",
+          "text": "%c[impeccable] 2 anti-patterns found color: oklch(84% 0.19 80.46); font-weight: bold"
+        },
+        {
+          "type": "log",
+          "text": "%coversized-h1%c 92px h1, 57 chars, 50vh \"Uma jornada cinematográfica através do tempo e da memória\" color: oklch(84% 0.19 80.46); font-weight: bold color: inherit JSHandle@node"
+        },
+        {
+          "type": "log",
+          "text": "%coverused-font%c Primary font: geist (96% of text) color: oklch(84% 0.19 80.46); font-weight: bold color: inherit JSHandle@node"
+        },
+        {
+          "type": "log",
+          "text": "%ckicker-above-heading%c kicker \"Filme em destaque\" above h1 \"Uma jornada cinematográfica através do tempo e da memória\" color: oklch(84% 0.19 80.46); font-weight: bold color: inherit JSHandle@node"
+        },
+        {
+          "type": "endGroup",
+          "text": "console.groupEnd"
+        }
+      ],
+      "dom": {
+        "viewport": 1440,
+        "scrollWidth": 1440,
+        "overlays": [
+          {
+            "tag": "DIV",
+            "id": "",
+            "class": "impeccable-overlay impeccable-visible",
+            "text": "✦ oversized hero headline"
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "class": "impeccable-label",
+            "text": "✦ oversized hero headline"
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "class": "impeccable-overlay impeccable-banner",
+            "text": "overused fontPrimary font: geist (96% of text)kicker / eyebrow label above headingkicker \"Filme em destaque\" above h1 \"Uma jornada cinematográfica através do tempo e da memória\"◉×"
+          }
+        ]
+      }
+    },
+    {
+      "surface": "details",
+      "logs": [
+        {
+          "type": "startGroup",
+          "text": "%c[impeccable] 3 anti-patterns found color: oklch(84% 0.19 80.46); font-weight: bold"
+        },
+        {
+          "type": "log",
+          "text": "%coversized-h1%c 92px h1, 57 chars, 50vh \"Uma jornada cinematográfica através do tempo e da memória\" color: oklch(84% 0.19 80.46); font-weight: bold color: inherit JSHandle@node"
+        },
+        {
+          "type": "log",
+          "text": "%cgpt-thin-border-wide-shadow%c 1px border + 100px shadow blur color: oklch(84% 0.19 80.46); font-weight: bold color: inherit JSHandle@node"
+        },
+        {
+          "type": "log",
+          "text": "%coverused-font%c Primary font: geist (91% of text) color: oklch(84% 0.19 80.46); font-weight: bold color: inherit JSHandle@node"
+        },
+        {
+          "type": "log",
+          "text": "%ckicker-above-heading%c kicker \"Filme em destaque\" above h1 \"Uma jornada cinematográfica através do tempo e da memória\" color: oklch(84% 0.19 80.46); font-weight: bold color: inherit JSHandle@node"
+        },
+        {
+          "type": "endGroup",
+          "text": "console.groupEnd"
+        }
+      ],
+      "dom": {
+        "viewport": 1440,
+        "scrollWidth": 1440,
+        "overlays": [
+          {
+            "tag": "DIV",
+            "id": "",
+            "class": "impeccable-overlay impeccable-visible",
+            "text": "✦ oversized hero headline"
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "class": "impeccable-label",
+            "text": "✦ oversized hero headline"
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "class": "impeccable-overlay impeccable-visible",
+            "text": "✦ hairline border with wide shadow"
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "class": "impeccable-label",
+            "text": "✦ hairline border with wide shadow"
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "class": "impeccable-overlay impeccable-banner",
+            "text": "overused fontPrimary font: geist (91% of text)kicker / eyebrow label above headingkicker \"Filme em destaque\" above h1 \"Uma jornada cinematográfica através do tempo e da memória\"◉×"
+          }
+        ]
+      }
+    },
+    {
+      "surface": "login",
+      "logs": [
+        {
+          "type": "startGroup",
+          "text": "%c[impeccable] 3 anti-patterns found color: oklch(84% 0.19 80.46); font-weight: bold"
+        },
+        {
+          "type": "log",
+          "text": "%coversized-h1%c 92px h1, 57 chars, 50vh \"Uma jornada cinematográfica através do tempo e da memória\" color: oklch(84% 0.19 80.46); font-weight: bold color: inherit JSHandle@node"
+        },
+        {
+          "type": "log",
+          "text": "%cgpt-thin-border-wide-shadow%c 1px border + 100px shadow blur color: oklch(84% 0.19 80.46); font-weight: bold color: inherit JSHandle@node"
+        },
+        {
+          "type": "log",
+          "text": "%coverused-font%c Primary font: geist (95% of text) color: oklch(84% 0.19 80.46); font-weight: bold color: inherit JSHandle@node"
+        },
+        {
+          "type": "log",
+          "text": "%ckicker-above-heading%c kicker \"Filme em destaque\" above h1 \"Uma jornada cinematográfica através do tempo e da memória\" color: oklch(84% 0.19 80.46); font-weight: bold color: inherit JSHandle@node"
+        },
+        {
+          "type": "endGroup",
+          "text": "console.groupEnd"
+        }
+      ],
+      "dom": {
+        "viewport": 1440,
+        "scrollWidth": 1440,
+        "overlays": [
+          {
+            "tag": "DIV",
+            "id": "",
+            "class": "impeccable-overlay impeccable-visible",
+            "text": "✦ oversized hero headline"
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "class": "impeccable-label",
+            "text": "✦ oversized hero headline"
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "class": "impeccable-overlay impeccable-visible",
+            "text": "✦ hairline border with wide shadow"
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "class": "impeccable-label",
+            "text": "✦ hairline border with wide shadow"
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "class": "impeccable-overlay impeccable-banner",
+            "text": "overused fontPrimary font: geist (95% of text)kicker / eyebrow label above headingkicker \"Filme em destaque\" above h1 \"Uma jornada cinematográfica através do tempo e da memória\"◉×"
+          }
+        ]
+      }
+    }
+  ],
+  "errors": []
+}
