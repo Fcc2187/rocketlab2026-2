@@ -25,33 +25,40 @@ export function MovieCard({
     callback();
   };
   return (
-    <article className="movie-card group relative flex h-full min-w-0 flex-col">
+    <article className="movie-card">
       {admin && (
-        <details
-          ref={menuRef}
-          className="absolute right-2 top-2 z-10 rounded-lg bg-bg/90 text-sm shadow-lg [&_summary]:list-none"
-        >
+        <details ref={menuRef} className="movie-menu">
           <summary
-            className="grid h-10 w-10 cursor-pointer place-items-center rounded-lg text-xl focus-visible:outline-2 focus-visible:outline-accent"
+            className="movie-menu-toggle"
             aria-label={`Opções para ${title}`}
           >
-            ⋯
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <circle cx="5" cy="12" r="1.5" />
+              <circle cx="12" cy="12" r="1.5" />
+              <circle cx="19" cy="12" r="1.5" />
+            </svg>
           </summary>
-          <div className="absolute right-0 mt-1 grid w-40 rounded-lg border border-line bg-surface p-1 shadow-xl">
+          <div className="movie-menu-panel">
             <button
-              className="rounded px-3 py-2 text-left hover:bg-surface2"
+              className="movie-menu-item"
               onClick={() => chooseAction(onDetails)}
             >
               Ver detalhes
             </button>
             <button
-              className="rounded px-3 py-2 text-left hover:bg-surface2"
+              className="movie-menu-item"
               onClick={() => chooseAction(onEdit)}
             >
               Editar
             </button>
             <button
-              className="rounded px-3 py-2 text-left text-danger hover:bg-surface2"
+              className="movie-menu-item text-danger"
               onClick={() => chooseAction(onDelete)}
             >
               Excluir
@@ -62,24 +69,25 @@ export function MovieCard({
       <button
         type="button"
         onClick={onDetails}
-        className="block w-full text-left"
+        className="movie-poster-action"
         aria-label={`Ver detalhes de ${title}`}
       >
-        <Poster src={movie.url_poster} title={title} />
+        <Poster
+          src={movie.url_poster}
+          title={title}
+          variantKey={movie.sk_movie_id}
+        />
       </button>
-      <div className="mt-3 flex flex-1 flex-col">
-        <button
-          className="line-clamp-2 min-h-11 text-left text-base font-bold leading-snug hover:text-accent"
-          onClick={onDetails}
-        >
-          {title}
-        </button>
-        <p className="mt-1 line-clamp-1 text-sm text-muted">
+      <div className="movie-card-copy">
+        <h3 className="movie-card-title">
+          <button onClick={onDetails}>{title}</button>
+        </h3>
+        <p className="movie-card-meta">
           {movie.ano_lancamento ?? "Ano não informado"}
           {movie.generos.length > 0 &&
             ` · ${movie.generos.slice(0, 2).join(" · ")}`}
         </p>
-        <p className="mb-3 mt-2 text-sm">
+        <p className="movie-card-rating">
           <Rating
             score={movie.media_avaliacoes}
             count={movie.quantidade_avaliacoes}

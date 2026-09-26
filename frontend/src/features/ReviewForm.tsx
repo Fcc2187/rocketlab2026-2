@@ -48,9 +48,12 @@ export function ReviewForm({
     }
   }
   return (
-    <Modal title="Nova avaliação" onClose={onClose}>
-      <p className="mb-5 text-sm text-muted">Filme: {movieTitle(title)}</p>
-      <form onSubmit={submit} className="grid gap-4">
+    <Modal title="Nova avaliação" onClose={onClose} className="review-modal">
+      <p className="review-film-title">
+        <span className="sr-only">Filme: </span>
+        {movieTitle(title)}
+      </p>
+      <form onSubmit={submit} className="review-form" aria-busy={busy}>
         <label className="field">
           Seu nome
           <input
@@ -59,6 +62,9 @@ export function ReviewForm({
             required
             maxLength={120}
             autoFocus
+            ref={(input) => {
+              if (input) input.autofocus = true;
+            }}
           />
         </label>
         <label className="field">
@@ -73,9 +79,10 @@ export function ReviewForm({
             inputMode="decimal"
             required
             placeholder="8.5"
+            aria-describedby="review-score-help"
           />
         </label>
-        <p className="-mt-2 text-sm text-muted">
+        <p id="review-score-help" className="review-score-help">
           Use uma nota de 0 a 10. Decimais são aceitos.
         </p>
         <label className="field">
@@ -87,8 +94,8 @@ export function ReviewForm({
             maxLength={4000}
           />
         </label>
-        <ErrorText message={error} />
-        <div className="flex justify-end gap-2">
+        <ErrorText message={error} autoFocus />
+        <div className="review-form-actions">
           <button type="button" className="btn btn-outline" onClick={onClose}>
             Cancelar
           </button>

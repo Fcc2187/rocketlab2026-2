@@ -39,13 +39,24 @@ export function DeleteMovieModal({
     }
   }
   return (
-    <Modal title="Excluir filme?" onClose={onClose}>
-      <p className="mb-5 text-sm text-muted">
+    <Modal
+      title="Excluir filme?"
+      onClose={onClose}
+      className="admin-modal delete-modal"
+    >
+      <p className="delete-description">
         Excluir “{movieTitle(movie.titulo)}”? Esta ação não poderá ser desfeita.
       </p>
-      <ErrorText message={error} />
-      <div className="mt-5 flex justify-end gap-2">
-        <button className="btn btn-outline" onClick={onClose}>
+      <ErrorText message={error} autoFocus />
+      <div className="form-actions" aria-busy={busy}>
+        <button
+          className="btn btn-outline"
+          onClick={onClose}
+          autoFocus
+          ref={(button) => {
+            if (button) button.autofocus = true;
+          }}
+        >
           Cancelar
         </button>
         <button className="btn btn-danger" onClick={confirm} disabled={busy}>

@@ -12,6 +12,7 @@ import userEvent from "@testing-library/user-event";
 import { StrictMode } from "react";
 import App from "./App";
 import { MovieCard } from "./components/MovieCard";
+import { Poster } from "./components/ui";
 import type { MovieDetail, ReviewItem } from "./api/types";
 
 const movie: MovieDetail = {
@@ -321,7 +322,7 @@ test("menu administrativo fecha antes de executar uma ação", async () => {
   );
   const menu = screen.getByLabelText("Opções para Filme do menu")
     .parentElement as HTMLDetailsElement;
-  fireEvent.click(within(menu).getByText("⋯"));
+  fireEvent.click(screen.getByLabelText("Opções para Filme do menu"));
   expect(menu.open).toBe(true);
   fireEvent.click(within(menu).getByRole("button", { name: "Ver detalhes" }));
   expect(menu.open).toBe(false);
@@ -349,7 +350,7 @@ test("destaque global continua igual quando a busca muda", async () => {
   ]);
   render(<App />);
   expect(
-    await screen.findByRole("heading", { name: "Melhor avaliado" }),
+    await screen.findByRole("heading", { name: "Melhor avaliado", level: 1 }),
   ).toBeTruthy();
   expect(document.querySelector("#inicio img")?.getAttribute("src")).toBe(
     "https://example.com/poster.jpg",
@@ -358,10 +359,145 @@ test("destaque global continua igual quando a busca muda", async () => {
     target: { value: "Filme buscado" },
   });
   await screen.findByRole("button", { name: "Ver detalhes de Filme buscado" });
-  expect(screen.getByRole("heading", { name: "Melhor avaliado" })).toBeTruthy();
+  expect(
+    screen.getByRole("heading", { name: "Melhor avaliado", level: 1 }),
+  ).toBeTruthy();
   expect(
     api.calls.filter((call) => call.url.endsWith("/movies/featured")).length,
   ).toBe(1);
+});
+
+test("hero mantém skeleton acessível até chegar o destaque", async () => {
+  mockApi();
+  const fallbackFetch = globalThis.fetch;
+  let resolveFeatured!: (response: Response) => void;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((input: string, init?: RequestInit) =>
+      new URL(input).pathname.endsWith("/movies/featured")
+        ? new Promise<Response>((resolve) => {
+            resolveFeatured = resolve;
+          })
+        : fallbackFetch(input, init),
+    ),
+  );
+  render(<App />);
+
+  expect(
+    screen
+      .getByLabelText("Carregando filme em destaque")
+      .getAttribute("aria-busy"),
+  ).toBe("true");
+  expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
+  await screen.findAllByRole("article");
+  resolveFeatured(
+    new Response(JSON.stringify(movie), {
+      headers: { "Content-Type": "application/json" },
+    }),
+  );
+  expect(
+    await screen.findByRole("heading", { name: "Filme um", level: 1 }),
+  ).toBeTruthy();
+});
+
+test("hero vazio e erro são distintos e não bloqueiam o catálogo", async () => {
+  const api = mockApi();
+  api.setFilms([{ ...movie, url_poster: null, url_backdrop: null }]);
+  render(<App />);
+  expect(
+    await screen.findByRole("heading", {
+      name: "Nenhum filme em destaque",
+      level: 1,
+    }),
+  ).toBeTruthy();
+  expect(await screen.findAllByRole("article")).toHaveLength(1);
+
+  cleanup();
+  mockApi();
+  const fallbackFetch = globalThis.fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((input: string, init?: RequestInit) =>
+      new URL(input).pathname.endsWith("/movies/featured")
+        ? Promise.resolve(new Response("{}", { status: 503 }))
+        : fallbackFetch(input, init),
+    ),
+  );
+  render(<App />);
+  expect(
+    await screen.findByRole("heading", {
+      name: "Destaque indisponível",
+      level: 1,
+    }),
+  ).toBeTruthy();
+  expect(await screen.findAllByRole("article")).toHaveLength(1);
+});
+
+test("hero mantém o destaque anterior durante refresh após avaliação", async () => {
+  const api = mockApi();
+  api.setFilms([{ ...movie, url_poster: "https://example.com/poster.jpg" }]);
+  const fallbackFetch = globalThis.fetch;
+  let featuredCalls = 0;
+  let resolveRefresh!: (response: Response) => void;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((input: string, init?: RequestInit) => {
+      if (new URL(input).pathname.endsWith("/movies/featured")) {
+        featuredCalls += 1;
+        if (featuredCalls === 2)
+          return new Promise<Response>((resolve) => {
+            resolveRefresh = resolve;
+          });
+      }
+      return fallbackFetch(input, init);
+    }),
+  );
+  const user = userEvent.setup();
+  render(<App />);
+  expect(
+    await screen.findByRole("heading", { name: "Filme um", level: 1 }),
+  ).toBeTruthy();
+  await user.click(screen.getAllByRole("button", { name: "Avaliar" })[0]);
+  const dialog = screen.getByRole("dialog");
+  await user.type(within(dialog).getByLabelText("Seu nome"), "Bia");
+  await user.type(within(dialog).getByLabelText("Sua nota / 10"), "8");
+  await user.type(within(dialog).getByLabelText("Comentário"), "Boa história");
+  await user.click(
+    within(dialog).getByRole("button", { name: "Publicar avaliação" }),
+  );
+  await waitFor(() => expect(featuredCalls).toBe(2));
+  expect(
+    screen.getByRole("heading", { name: "Filme um", level: 1 }),
+  ).toBeTruthy();
+  expect(document.querySelector("#inicio")?.getAttribute("aria-busy")).toBe(
+    "true",
+  );
+  resolveRefresh(
+    new Response(JSON.stringify({ ...movie, titulo: "Novo destaque" }), {
+      headers: { "Content-Type": "application/json" },
+    }),
+  );
+  expect(
+    await screen.findByRole("heading", { name: "Novo destaque", level: 1 }),
+  ).toBeTruthy();
+});
+
+test("fallback de pôster usa variante determinística pelo ID", () => {
+  const renderPoster = (id: string) => (
+    <Poster src={null} title="Sem pôster" variantKey={id} />
+  );
+  const { rerender, container } = render(renderPoster("movie-1"));
+  const first = container.querySelector(".poster-fallback");
+  const variant = first?.getAttribute("data-variant");
+  rerender(renderPoster("movie-1"));
+  expect(
+    container.querySelector(".poster-fallback")?.getAttribute("data-variant"),
+  ).toBe(variant);
+  rerender(renderPoster("movie-2"));
+  expect(
+    container.querySelector(".poster-fallback")?.getAttribute("data-variant"),
+  ).not.toBe(variant);
+  expect(screen.getByText("Imagem indisponível")).toBeTruthy();
 });
 
 test("visitante publica avaliação sem login e vê a nova média", async () => {
