@@ -103,9 +103,17 @@ export function MovieForm({
   const [original, setOriginal] = useState<MovieDetail | null>(null);
   const [title, setTitle] = useState("");
   const [year, setYear] = useState("");
+  const [releaseDate, setReleaseDate] = useState("");
+  const [duration, setDuration] = useState("");
+  const [status, setStatus] = useState("");
+  const [poster, setPoster] = useState("");
+  const [backdrop, setBackdrop] = useState("");
   const [synopsis, setSynopsis] = useState("");
   const [genres, setGenres] = useState<string[]>([]);
   const [directors, setDirectors] = useState<string[]>([]);
+  const [actors, setActors] = useState<string[]>([]);
+  const [writers, setWriters] = useState<string[]>([]);
+  const [companies, setCompanies] = useState<string[]>([]);
   const [loading, setLoading] = useState(Boolean(id));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -117,9 +125,17 @@ export function MovieForm({
         setOriginal(movie);
         setTitle(movie.titulo);
         setYear(movie.ano_lancamento?.toString() || "");
+        setReleaseDate(movie.data_lancamento || "");
+        setDuration(movie.duracao_minutos?.toString() || "");
+        setStatus(movie.status_filme || "");
+        setPoster(movie.url_poster || "");
+        setBackdrop(movie.url_backdrop || "");
         setSynopsis(movie.sinopse || "");
         setGenres(movie.generos);
         setDirectors(movie.diretores);
+        setActors(movie.atores);
+        setWriters(movie.roteiristas);
+        setCompanies(movie.produtoras);
       })
       .catch((cause) => {
         if (!controller.signal.aborted) setError(cause.message);
@@ -134,9 +150,17 @@ export function MovieForm({
     const payload: MovieCreate = {
       titulo: title.trim(),
       ano_lancamento: year ? Number(year) : null,
+      data_lancamento: releaseDate || null,
+      duracao_minutos: duration ? Number(duration) : null,
+      status_filme: status.trim() || null,
+      url_poster: poster.trim() || null,
+      url_backdrop: backdrop.trim() || null,
       sinopse: synopsis.trim() || null,
       generos: genres,
       diretores: directors,
+      atores: actors,
+      roteiristas: writers,
+      produtoras: companies,
     };
     if (!payload.titulo) {
       setError("Informe o título do filme.");
@@ -144,16 +168,10 @@ export function MovieForm({
     }
     const patch: MoviePatch = {};
     if (original) {
-      if (payload.titulo !== original.titulo) patch.titulo = payload.titulo;
-      if (payload.ano_lancamento !== original.ano_lancamento)
-        patch.ano_lancamento = payload.ano_lancamento;
-      if (payload.sinopse !== original.sinopse) patch.sinopse = payload.sinopse;
-      if (JSON.stringify(payload.generos) !== JSON.stringify(original.generos))
-        patch.generos = payload.generos;
-      if (
-        JSON.stringify(payload.diretores) !== JSON.stringify(original.diretores)
-      )
-        patch.diretores = payload.diretores;
+      for (const key of Object.keys(payload) as (keyof MovieCreate)[]) {
+        if (JSON.stringify(payload[key]) !== JSON.stringify(original[key]))
+          Object.assign(patch, { [key]: payload[key] });
+      }
     }
     setBusy(true);
     setError(null);
@@ -186,6 +204,7 @@ export function MovieForm({
         </p>
       ) : (
         <form onSubmit={submit} className="admin-form" aria-busy={busy}>
+          <p className="form-description">Somente o título é obrigatório.</p>
           <label className="field">
             Título
             <input
@@ -211,6 +230,66 @@ export function MovieForm({
               onChange={(event) => setYear(event.target.value)}
             />
           </label>
+          <label className="field">
+            Data de lançamento
+            <input
+              className="input"
+              type="date"
+              max="9999-12-31"
+              min="0001-01-01"
+              value={releaseDate}
+              onChange={(event) => {
+                setReleaseDate(event.target.value);
+                if (event.target.value) setYear(event.target.value.slice(0, 4));
+              }}
+            />
+          </label>
+          <label className="field">
+            Duração (minutos)
+            <input
+              className="input"
+              type="number"
+              min="0"
+              max="2147483647"
+              step="1"
+              value={duration}
+              onChange={(event) => setDuration(event.target.value)}
+            />
+          </label>
+          <label className="field">
+            Status
+            <input
+              className="input"
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+              maxLength={50}
+              placeholder="Ex.: Lançado, em produção"
+            />
+          </label>
+          <label className="field">
+            URL do pôster
+            <input
+              className="input"
+              type="url"
+              pattern="https?://.+"
+              value={poster}
+              onChange={(event) => setPoster(event.target.value)}
+              maxLength={2048}
+              placeholder="https://..."
+            />
+          </label>
+          <label className="field">
+            URL do backdrop
+            <input
+              className="input"
+              type="url"
+              pattern="https?://.+"
+              value={backdrop}
+              onChange={(event) => setBackdrop(event.target.value)}
+              maxLength={2048}
+              placeholder="https://..."
+            />
+          </label>
           <Chips
             label="Gêneros"
             names={genres}
@@ -232,6 +311,24 @@ export function MovieForm({
               maxLength={4000}
             />
           </label>
+          <Chips
+            label="Elenco"
+            names={actors}
+            setNames={setActors}
+            maxLength={255}
+          />
+          <Chips
+            label="Roteiristas"
+            names={writers}
+            setNames={setWriters}
+            maxLength={255}
+          />
+          <Chips
+            label="Produtoras"
+            names={companies}
+            setNames={setCompanies}
+            maxLength={255}
+          />
           <ErrorText message={error} autoFocus />
           <div className="form-actions">
             <button type="button" className="btn btn-outline" onClick={onClose}>

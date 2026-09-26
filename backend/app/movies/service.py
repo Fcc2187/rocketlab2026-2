@@ -7,12 +7,14 @@ from sqlalchemy.orm import selectinload
 
 from app.movies.cache import movie_cache
 from app.movies.models import (
+    DimCompany,
     DimGenre,
     DimMovie,
     DimPerson,
     DimReview,
     FactMoviePerformance,
     MovieReview,
+    PersonType,
 )
 from app.movies.schemas import (
     MovieCreate,
@@ -185,23 +187,41 @@ async def resolve_genres(db: AsyncSession, names: list[str]) -> list[DimGenre]:
     return [found.get(name.casefold()) or DimGenre(nome_genero=name) for name in names]
 
 
-async def resolve_directors(db: AsyncSession, names: list[str]) -> list[DimPerson]:
+async def resolve_people(
+    db: AsyncSession, names: list[str], role: PersonType
+) -> list[DimPerson]:
     if not names:
         return []
     found = {
         person.nome_pessoa.casefold(): person
         for person in await db.scalars(
             select(DimPerson).where(
-                DimPerson.tipo_pessoa == "Diretor",
+                DimPerson.tipo_pessoa == role,
                 func.unicode_casefold(DimPerson.nome_pessoa).in_(name.casefold() for name in names),
             )
             .order_by(DimPerson.sk_person_id)
         )
     }
     return [
-        found.get(name.casefold()) or DimPerson(nome_pessoa=name, tipo_pessoa="Diretor")
+        found.get(name.casefold()) or DimPerson(nome_pessoa=name, tipo_pessoa=role)
         for name in names
     ]
+
+
+async def resolve_companies(db: AsyncSession, names: list[str]) -> list[DimCompany]:
+    if not names:
+        return []
+    found = {
+        company.nome_produtora.casefold(): company
+        for company in await db.scalars(
+            select(DimCompany).where(
+                func.unicode_casefold(DimCompany.nome_produtora).in_(
+                    name.casefold() for name in names
+                )
+            ).order_by(DimCompany.sk_company_id)
+        )
+    }
+    return [found.get(name.casefold()) or DimCompany(nome_produtora=name) for name in names]
 
 
 async def create_movie(payload: MovieCreate, db: AsyncSession) -> MovieDetail:
@@ -209,9 +229,17 @@ async def create_movie(payload: MovieCreate, db: AsyncSession) -> MovieDetail:
         id_filme=f"manual:{uuid4().hex}",
         titulo=payload.titulo,
         ano_lancamento=payload.ano_lancamento,
+        data_lancamento=payload.data_lancamento,
+        duracao_minutos=payload.duracao_minutos,
+        status_filme=payload.status_filme,
+        url_poster=payload.url_poster,
+        url_backdrop=payload.url_backdrop,
         sinopse=payload.sinopse,
         genres=await resolve_genres(db, payload.generos),
-        people=await resolve_directors(db, payload.diretores),
+        people=(await resolve_people(db, payload.diretores, "Diretor")
+                + await resolve_people(db, payload.atores, "Ator")
+                + await resolve_people(db, payload.roteiristas, "Roteirista")),
+        companies=await resolve_companies(db, payload.produtoras),
     )
     db.add(movie)
     await db.commit()
@@ -278,19 +306,30 @@ async def patch_movie(
 ) -> MovieDetail:
     movie = await db.scalar(
         select(DimMovie)
-        .options(selectinload(DimMovie.genres), selectinload(DimMovie.people))
+        .options(selectinload(DimMovie.genres), selectinload(DimMovie.people),
+                 selectinload(DimMovie.companies))
         .where(DimMovie.sk_movie_id == sk_movie_id)
     )
     if movie is None:
         raise HTTPException(status_code=404, detail="Filme não encontrado")
-    for field in ("titulo", "ano_lancamento", "sinopse"):
+    release_date = (payload.data_lancamento if "data_lancamento" in payload.model_fields_set
+                    else movie.data_lancamento)
+    if (release_date is not None and "ano_lancamento" in payload.model_fields_set
+            and payload.ano_lancamento != release_date.year):
+        raise HTTPException(status_code=422, detail="Ano e data de lançamento devem corresponder")
+    for field in ("titulo", "ano_lancamento", "sinopse", "data_lancamento",
+                  "duracao_minutos", "status_filme", "url_poster", "url_backdrop"):
         if field in payload.model_fields_set:
             setattr(movie, field, getattr(payload, field))
     if "generos" in payload.model_fields_set:
         movie.genres = await resolve_genres(db, payload.generos or [])
-    if "diretores" in payload.model_fields_set:
-        movie.people = [person for person in movie.people if person.tipo_pessoa != "Diretor"]
-        movie.people.extend(await resolve_directors(db, payload.diretores or []))
+    for field, role in (("diretores", "Diretor"), ("atores", "Ator"),
+                        ("roteiristas", "Roteirista")):
+        if field in payload.model_fields_set:
+            movie.people = [person for person in movie.people if person.tipo_pessoa != role]
+            movie.people.extend(await resolve_people(db, getattr(payload, field) or [], role))
+    if "produtoras" in payload.model_fields_set:
+        movie.companies = await resolve_companies(db, payload.produtoras or [])
     await db.commit()
     movie_cache.invalidate()
     return await get_movie(sk_movie_id, db)

@@ -13,6 +13,7 @@ import { StrictMode } from "react";
 import App from "./App";
 import { MovieCard } from "./components/MovieCard";
 import { Poster } from "./components/ui";
+import { MovieForm } from "./features/MovieForm";
 import type { MovieDetail, ReviewItem } from "./api/types";
 
 const movie: MovieDetail = {
@@ -608,7 +609,40 @@ test("clique em Entrar mantém o modal aberto no StrictMode do aplicativo", asyn
   ).toBeTruthy();
 });
 
+test("filme com duração zero permite editar outros campos sem alterar a duração", async () => {
+  const api = mockApi();
+  api.setFilms([
+    { ...movie, titulo: "Spider-Man: Brand New Day", duracao_minutos: 0 },
+  ]);
+  const onSaved = vi.fn();
+  const user = userEvent.setup();
+  render(
+    <MovieForm
+      id={movie.sk_movie_id}
+      token="test-token"
+      onClose={vi.fn()}
+      onSaved={onSaved}
+      onUnauthorized={vi.fn()}
+    />,
+  );
+  const synopsis = await screen.findByLabelText("Sinopse");
+  const duration = screen.getByLabelText(
+    "Duração (minutos)",
+  ) as HTMLInputElement;
+  expect(duration.value).toBe("0");
+  expect(duration.checkValidity()).toBe(true);
+  await user.clear(synopsis);
+  await user.type(synopsis, "Sinopse atualizada.");
+  await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+  await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+  expect(api.calls.find((call) => call.method === "PATCH")?.body).toEqual({
+    sinopse: "Sinopse atualizada.",
+  });
+  expect(onSaved.mock.calls[0][0].duracao_minutos).toBe(0);
+});
+
 test("administrador cria, edita e exclui filme pela API", async () => {
+  const movieTitle = "Spider-Man: Brand New Day";
   const api = mockApi();
   const user = userEvent.setup();
   render(<App />);
@@ -622,7 +656,32 @@ test("administrador cria, edita e exclui filme pela API", async () => {
     await screen.findByRole("button", { name: "+ Adicionar filme" }),
   );
   dialog = screen.getByRole("dialog");
-  await user.type(within(dialog).getByLabelText("Título"), "Filme novo");
+  await user.type(within(dialog).getByLabelText("Título"), movieTitle);
+  fireEvent.change(within(dialog).getByLabelText("Data de lançamento"), {
+    target: { value: "2026-07-29" },
+  });
+  await user.type(within(dialog).getByLabelText("Duração (minutos)"), "145");
+  await user.type(within(dialog).getByLabelText("Status"), "Lançado");
+  await user.type(
+    within(dialog).getByLabelText("URL do pôster"),
+    "https://example.com/poster.jpg",
+  );
+  await user.type(
+    within(dialog).getByLabelText("URL do backdrop"),
+    "https://example.com/backdrop.jpg",
+  );
+  await user.type(
+    within(dialog).getByLabelText("Novo elenco"),
+    "Tom Holland{Enter}",
+  );
+  await user.type(
+    within(dialog).getByLabelText("Novo roteiristas"),
+    "Chris McKenna{Enter}",
+  );
+  await user.type(
+    within(dialog).getByLabelText("Novo produtoras"),
+    "Marvel Studios{Enter}",
+  );
   await user.click(
     within(dialog).getByRole("button", { name: "Adicionar filme" }),
   );
@@ -636,16 +695,60 @@ test("administrador cria, edita e exclui filme pela API", async () => {
       ),
     ).toBe(true),
   );
-  dialog = await screen.findByRole("dialog", { name: "Filme novo" });
+  dialog = await screen.findByRole("dialog", { name: movieTitle });
   await user.click(within(dialog).getByRole("button", { name: "Editar" }));
   dialog = screen.getByRole("dialog");
-  const title = within(dialog).getByLabelText("Título");
-  await user.clear(title);
-  await user.type(title, "Filme editado");
+  const duration = within(dialog).getByLabelText("Duração (minutos)");
+  expect(within(dialog).getByLabelText("Título")).toHaveProperty(
+    "value",
+    movieTitle,
+  );
+  expect(within(dialog).getByLabelText("Data de lançamento")).toHaveProperty(
+    "value",
+    "2026-07-29",
+  );
+  expect(within(dialog).getByLabelText("Duração (minutos)")).toHaveProperty(
+    "value",
+    "145",
+  );
+  expect(within(dialog).getByLabelText("URL do pôster")).toHaveProperty(
+    "value",
+    "https://example.com/poster.jpg",
+  );
+  expect(
+    within(dialog).getByRole("button", { name: "Remover Tom Holland" }),
+  ).toBeTruthy();
+  await user.clear(within(dialog).getByLabelText("URL do pôster"));
+  await user.click(
+    within(dialog).getByRole("button", { name: "Remover Tom Holland" }),
+  );
+  await user.clear(duration);
+  await user.type(duration, "150");
   await user.click(
     within(dialog).getByRole("button", { name: "Salvar alterações" }),
   );
-  dialog = await screen.findByRole("dialog", { name: "Filme editado" });
+  dialog = await screen.findByRole("dialog", { name: movieTitle });
+  expect(
+    api.calls.find(
+      (call) => call.method === "POST" && call.url.endsWith("/movies"),
+    )?.body,
+  ).toMatchObject({
+    titulo: movieTitle,
+    data_lancamento: "2026-07-29",
+    ano_lancamento: 2026,
+    duracao_minutos: 145,
+    status_filme: "Lançado",
+    url_poster: "https://example.com/poster.jpg",
+    url_backdrop: "https://example.com/backdrop.jpg",
+    atores: ["Tom Holland"],
+    roteiristas: ["Chris McKenna"],
+    produtoras: ["Marvel Studios"],
+  });
+  expect(api.calls.find((call) => call.method === "PATCH")?.body).toEqual({
+    duracao_minutos: 150,
+    url_poster: null,
+    atores: [],
+  });
   expect(
     api.calls.some(
       (call) => call.method === "PATCH" && call.auth === "Bearer test-token",
@@ -656,7 +759,7 @@ test("administrador cria, edita e exclui filme pela API", async () => {
   await user.click(within(dialog).getByRole("button", { name: "Excluir" }));
   await waitFor(() =>
     expect(
-      screen.queryByRole("button", { name: "Ver detalhes de Filme editado" }),
+      screen.queryByRole("button", { name: `Ver detalhes de ${movieTitle}` }),
     ).toBeNull(),
   );
   expect(

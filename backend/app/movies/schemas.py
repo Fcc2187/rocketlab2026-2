@@ -5,7 +5,9 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    HttpUrl,
     StringConstraints,
+    TypeAdapter,
     field_validator,
     model_validator,
 )
@@ -13,6 +15,7 @@ from pydantic import (
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
 GenreName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)]
 PersonName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
+ImageUrl = Annotated[str, StringConstraints(strip_whitespace=True, max_length=2048)]
 
 
 class MovieListItem(BaseModel):
@@ -110,11 +113,28 @@ class MoviePatch(BaseModel):
 
     titulo: Title | None = None
     ano_lancamento: int | None = Field(default=None, ge=1, le=9999)
+    data_lancamento: date | None = None
+    duracao_minutos: int | None = Field(default=None, ge=0, le=2147483647)
+    status_filme: (
+        Annotated[str, StringConstraints(strip_whitespace=True, max_length=50)] | None
+    ) = None
+    url_poster: ImageUrl | None = None
+    url_backdrop: ImageUrl | None = None
     sinopse: str | None = Field(default=None, max_length=4000)
     generos: list[GenreName] | None = None
     diretores: list[PersonName] | None = None
+    atores: list[PersonName] | None = None
+    roteiristas: list[PersonName] | None = None
+    produtoras: list[PersonName] | None = None
 
-    @field_validator("generos", "diretores")
+    @field_validator("url_poster", "url_backdrop")
+    @classmethod
+    def validate_image_url(cls, value: str | None) -> str | None:
+        if value is not None:
+            TypeAdapter(HttpUrl).validate_python(value)
+        return value
+
+    @field_validator("generos", "diretores", "atores", "roteiristas", "produtoras")
     @classmethod
     def unique_names(cls, names: list[str] | None) -> list[str] | None:
         if names is not None and len({name.casefold() for name in names}) != len(names):
@@ -123,9 +143,14 @@ class MoviePatch(BaseModel):
 
     @model_validator(mode="after")
     def reject_null_required_fields(self):
-        for field in ("titulo", "generos", "diretores"):
+        for field in ("titulo", "generos", "diretores", "atores", "roteiristas", "produtoras"):
             if field in self.model_fields_set and getattr(self, field) is None:
                 raise ValueError(f"{field} não pode ser nulo")
+        if self.data_lancamento is not None:
+            if ("ano_lancamento" in self.model_fields_set
+                    and self.ano_lancamento != self.data_lancamento.year):
+                raise ValueError("Ano e data de lançamento devem corresponder")
+            self.ano_lancamento = self.data_lancamento.year
         return self
 
 
@@ -147,3 +172,6 @@ class MovieCreate(MoviePatch):
     titulo: Title
     generos: list[GenreName] = Field(default_factory=list)
     diretores: list[PersonName] = Field(default_factory=list)
+    atores: list[PersonName] = Field(default_factory=list)
+    roteiristas: list[PersonName] = Field(default_factory=list)
+    produtoras: list[PersonName] = Field(default_factory=list)

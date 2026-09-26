@@ -18,6 +18,7 @@ O frontend abre em `http://localhost:5173` e usa a API em `http://localhost:8000
 - Detalhes do filme com elenco, diretores, gêneros, métricas e histórico paginado de avaliações.
 - Avaliações públicas sem login, usando notas de 0 a 10 e atualização da média após o envio.
 - Login administrativo em modal, com cadastro, edição e exclusão de filmes protegidos por JWT.
+- Cadastro e edição com título, ano/data de lançamento, duração, status, sinopse, URLs de pôster e backdrop, gêneros, diretores, elenco, roteiristas e produtoras. Somente o título é obrigatório.
 - Filme em destaque global: exige imagem e pelo menos 3 avaliações; escolhe a maior média e usa a quantidade de avaliações como desempate. A busca e os filtros do catálogo não alteram esse destaque.
 - Resolução case-insensitive de gêneros e diretores, incluindo caracteres acentuados, sem criar entidades duplicadas.
 - Cache local das leituras, invalidado depois de escritas bem-sucedidas.
@@ -105,13 +106,21 @@ Exemplo de filme:
 {
   "titulo": "Meu filme",
   "ano_lancamento": 2024,
+  "data_lancamento": "2024-05-10",
+  "duracao_minutos": 120,
+  "status_filme": "Lançado",
+  "url_poster": "https://example.com/poster.jpg",
+  "url_backdrop": "https://example.com/backdrop.jpg",
   "sinopse": "Uma história.",
   "generos": ["Drama"],
-  "diretores": ["Ana Silva"]
+  "diretores": ["Ana Silva"],
+  "atores": ["Bia Santos"],
+  "roteiristas": ["Ana Silva"],
+  "produtoras": ["Estúdio"]
 }
 ```
 
-Na atualização, `generos: []` limpa os gêneros e `diretores: []` limpa apenas os diretores. Campos omitidos permanecem iguais. Títulos repetidos são permitidos; cada filme possui um `sk_movie_id` distinto.
+Na atualização, listas vazias limpam apenas os respectivos vínculos (`generos`, `diretores`, `atores`, `roteiristas` ou `produtoras`). Campos opcionais escalares aceitam `null` para limpeza; campos omitidos permanecem iguais. A duração aceita inteiros a partir de `0`, que pode representar duração desconhecida. Quando informada, a data completa define o ano de lançamento, e valores divergentes são rejeitados. URLs de imagens devem usar HTTP ou HTTPS. Títulos repetidos são permitidos; cada filme possui um `sk_movie_id` distinto.
 
 Exemplo de avaliação:
 

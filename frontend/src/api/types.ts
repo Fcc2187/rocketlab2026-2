@@ -73,9 +73,17 @@ export interface ReviewCreated extends ReviewItem {
 export interface MovieCreate {
   titulo: string;
   ano_lancamento: number | null;
+  data_lancamento: string | null;
+  duracao_minutos: number | null;
+  status_filme: string | null;
+  url_poster: string | null;
+  url_backdrop: string | null;
   sinopse: string | null;
   generos: string[];
   diretores: string[];
+  atores: string[];
+  roteiristas: string[];
+  produtoras: string[];
 }
 
 export type MoviePatch = Partial<MovieCreate>;

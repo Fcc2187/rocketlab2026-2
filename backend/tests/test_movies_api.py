@@ -1,3 +1,4 @@
+import pytest
 from sqlalchemy import func, select
 
 from app.db.session import get_db
@@ -11,6 +12,124 @@ from app.movies.models import (
     FactMoviePerformance,
     MovieReview,
 )
+
+
+async def test_movie_extended_metadata_can_be_created_updated_and_cleared(
+    client, admin_headers
+) -> None:
+    metadata = {
+        "data_lancamento": "2024-05-10",
+        "duracao_minutos": 120,
+        "status_filme": "Lançado",
+        "url_poster": "https://example.com/poster.jpg",
+        "url_backdrop": "https://example.com/backdrop.jpg",
+        "atores": ["Bia"],
+        "roteiristas": ["Ana"],
+        "produtoras": ["Estúdio"],
+    }
+    created = await client.post(
+        "/api/v1/movies",
+        json={"titulo": "Completo", "diretores": ["Ana"], **metadata},
+        headers=admin_headers,
+    )
+    assert created.status_code == 201
+    movie_id = created.json()["sk_movie_id"]
+    detail = (await client.get(f"/api/v1/movies/{movie_id}")).json()
+    assert {field: detail[field] for field in metadata} == metadata
+    assert detail["ano_lancamento"] == 2024
+
+    reused = await client.post(
+        "/api/v1/movies",
+        json={"titulo": "Outro", "atores": ["bia"], "diretores": ["ana"],
+              "roteiristas": ["ana"], "produtoras": ["estúdio"]},
+        headers=admin_headers,
+    )
+    assert reused.status_code == 201
+    assert reused.json()["atores"] == ["Bia"]
+    assert reused.json()["diretores"] == ["Ana"]
+    assert reused.json()["roteiristas"] == ["Ana"]
+    assert reused.json()["produtoras"] == ["Estúdio"]
+
+    updated = await client.patch(
+        f"/api/v1/movies/{movie_id}",
+        json={"duracao_minutos": 130, "atores": ["bia", "Caio"],
+              "data_lancamento": "2025-05-10"},
+        headers=admin_headers,
+    )
+    assert updated.status_code == 200
+    assert updated.json()["duracao_minutos"] == 130
+    assert updated.json()["ano_lancamento"] == 2025
+    assert set(updated.json()["atores"]) == {"Bia", "Caio"}
+    assert updated.json()["diretores"] == ["Ana"]
+    assert updated.json()["roteiristas"] == ["Ana"]
+    assert updated.json()["produtoras"] == ["Estúdio"]
+
+    inconsistent_year = await client.patch(
+        f"/api/v1/movies/{movie_id}", json={"ano_lancamento": 2023}, headers=admin_headers
+    )
+    assert inconsistent_year.status_code == 422
+    assert (await client.get(f"/api/v1/movies/{movie_id}")).json()["ano_lancamento"] == 2025
+
+    cleared = await client.patch(
+        f"/api/v1/movies/{movie_id}",
+        json={key: [] if isinstance(value, list) else None for key, value in metadata.items()},
+        headers=admin_headers,
+    )
+    assert cleared.status_code == 200
+    assert all(cleared.json()[key] == ([] if isinstance(value, list) else None)
+               for key, value in metadata.items())
+    assert cleared.json()["diretores"] == ["Ana"]
+
+
+async def test_zero_duration_is_saved_and_preserved_when_editing_other_fields(
+    client, admin_headers
+) -> None:
+    created = await client.post(
+        "/api/v1/movies", json={"titulo": "Spider-Man: Brand New Day", "duracao_minutos": 0},
+        headers=admin_headers,
+    )
+    assert created.status_code == 201
+    movie_id = created.json()["sk_movie_id"]
+    assert created.json()["duracao_minutos"] == 0
+    for duration in (145, 0):
+        patched = await client.patch(
+            f"/api/v1/movies/{movie_id}", json={"duracao_minutos": duration},
+            headers=admin_headers,
+        )
+        assert patched.status_code == 200
+        assert patched.json()["duracao_minutos"] == duration
+    updated = await client.patch(
+        f"/api/v1/movies/{movie_id}", json={"sinopse": "Sinopse atualizada."},
+        headers=admin_headers,
+    )
+    assert updated.status_code == 200
+    assert updated.json()["duracao_minutos"] == 0
+
+
+@pytest.mark.parametrize("invalid", [
+    {"duracao_minutos": -1},
+    {"duracao_minutos": 1.5},
+    {"url_poster": "javascript:alert(1)"},
+    {"url_backdrop": "not-a-url"},
+    {"data_lancamento": "2024-02-30"},
+    {"data_lancamento": "2024-05-10", "ano_lancamento": 2023},
+    {"status_filme": "x" * 51},
+    {"atores": ["Bia", "bia"]},
+    {"roteiristas": None},
+    {"produtoras": [" "]},
+])
+async def test_extended_movie_fields_are_validated(client, admin_headers, invalid) -> None:
+    created = await client.post(
+        "/api/v1/movies", json={"titulo": "Inválido", **invalid}, headers=admin_headers
+    )
+    assert created.status_code == 422
+    valid = await client.post(
+        "/api/v1/movies", json={"titulo": "Válido"}, headers=admin_headers
+    )
+    patched = await client.patch(
+        f"/api/v1/movies/{valid.json()['sk_movie_id']}", json=invalid, headers=admin_headers
+    )
+    assert patched.status_code == 422
 
 
 async def test_catalog_is_empty_when_database_has_no_movies(client) -> None:
