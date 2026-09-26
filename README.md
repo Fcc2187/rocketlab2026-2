@@ -147,3 +147,9 @@ Dentro de `backend/`:
 No macOS/Linux, use `.venv/bin/python` no lugar de `.\.venv\Scripts\python.exe`. Os testes HTTP usam um banco temporário migrado pelo Alembic e não alteram o banco local.
 
 Para verificar o frontend, execute `npm test`, `npm run lint` e `npm run build` dentro de `frontend/`.
+
+## Design e prototipação
+
+A interface do CineRate foi redesenhada a partir de um protótipo de alta fidelidade no Figma, usado como referência para tipografia, hierarquia visual, responsividade e identidade editorial do frontend.
+
+- [Protótipo no Figma](https://www.figma.com/design/GXfrDPHbV5DcpwBAO8RsMp/RocketLab-Redesign?node-id=0-1&p=f&t=ikCCpqZpClRCRY3A-0)
